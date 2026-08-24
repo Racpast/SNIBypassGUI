@@ -1,0 +1,10 @@
+# Build output
+/build/
+/dist/
+
+# Private keys — MUST NEVER be committed. The release signing key belongs outside
+# the repo entirely (e.g. %USERPROFILE%\.snib\signing_key.pem); this is a backstop
+# in case one lands here.
+signing_key.pem
+*.pem
+*.p8

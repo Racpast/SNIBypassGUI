@@ -1,0 +1,12 @@
+# Source stays LF in the repo, normalized on commit, so the working tree is
+# identical no matter who checks it out. (Explicit, not relying on the platform
+# default, which is CRLF on Windows runners.)
+* text=auto eol=lf
+
+# The signed update tree is content-addressed: every payload file's bytes are
+# hashed at pack time and re-verified byte-for-byte on the client. If git ever
+# rewrites line endings (autocrlf / text=auto) on checkout, the packed manifest
+# hash would no longer match the file that shipped. So the payload — the exact
+# tree snibrelease.py chunks and signs — is pinned verbatim on EVERY platform.
+# This rule comes AFTER the wildcard above so it wins for payload files.
+resources/payload/** -text

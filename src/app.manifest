@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Copyright © 2026 Racpast. All Rights Reserved.
+
+  This file is part of SNIBypassGUI, a proprietary software project.
+
+  NOTICE: All information contained herein is, and remains the property of
+  Racpast. The intellectual and technical concepts contained herein are
+  proprietary to Racpast and are protected by copyright law and international
+  treaties. Dissemination of this information or reproduction of this material
+  is strictly forbidden unless prior written permission is obtained from Racpast.
+
+  Unauthorized copying, modification, distribution, or use of this file,
+  via any medium, is strictly prohibited.
+
+  For licensing inquiries: snibypassgui@gmail.com or racpast@gmail.com
+
+  See the LICENSE file in the project root for full terms and conditions.
+-->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity version="5.0.0.0" processorArchitecture="*" name="Racpast.SNIBypassGUI" type="win32"/>
+  <description>SNIBypassGUI</description>
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/> <!-- Windows 10/11 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}"/> <!-- Windows 8.1 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}"/> <!-- Windows 7 -->
+    </application>
+  </compatibility>
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true</dpiAware>
+    </windowsSettings>
+  </application>
+</assembly>

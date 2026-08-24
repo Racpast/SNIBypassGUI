@@ -1,0 +1,355 @@
+# Copyright © 2026 Racpast. All Rights Reserved.
+#
+# This file is part of SNIBypassGUI, a proprietary software project.
+#
+# NOTICE: All information contained herein is, and remains the property of
+# Racpast. The intellectual and technical concepts contained herein are
+# proprietary to Racpast and are protected by copyright law and international
+# treaties. Dissemination of this information or reproduction of this material
+# is strictly forbidden unless prior written permission is obtained from Racpast.
+#
+# Unauthorized copying, modification, distribution, or use of this file,
+# via any medium, is strictly prohibited.
+#
+# For licensing inquiries: snibypassgui@gmail.com or racpast@gmail.com
+#
+# See the LICENSE file in the project root for full terms and conditions.
+
+# ==============================================================================
+# Resolvers
+# ==============================================================================
+
+[resolvers.googledns-plain]
+endpoint = "8.8.8.8"
+
+[resolvers.dnspod-doh]
+endpoint = "https://doh.pub/dns-query"
+bootstrap = "@googledns-plain"
+
+[resolvers.cloudflare-dot]
+endpoint = "tls://1.1.1.1"
+
+[resolvers.cloudflare-doh]
+endpoint = "https://dns.cloudflare.com/dns-query"
+upstream = "saas.sin.fan"
+bootstrap = "@dnspod-doh"
+
+  [resolvers.cloudflare-doh.ech]
+  mode = "doh-with-fallback"
+  config = "AEX+DQBBLQAgACAxQqjtKV8aN6XxFvuDitIIktkPDIJnbKcXPyGbTEl4ewAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA="
+  require_ech = true
+  ech_refresh = "1h"
+  ech_domain = "cloudflare-ech.com"
+
+
+# ==============================================================================
+# Templates
+# ==============================================================================
+
+[templates.cf-optimize]
+upstream = "cf.090227.xyz"
+address_family = "ipv4"
+resolver = "@dnspod-doh"
+
+[templates.nat64-proxy]
+nat64_prefix = "2a01:4f8:c2c:123f:64:5::"
+address_family = "ipv4"
+resolver = "@cloudflare-doh"
+
+
+# ==============================================================================
+# Regexes
+# ==============================================================================
+
+# [regexes.cdn-upos]
+# pattern = "^upos-[a-z0-9-]+\\.akamaized\\.net$"
+# scope_suffix = ["*.akamaized.net"]
+
+[regexes.deviantart-non-cloudfront]
+pattern = "^(?:(?:fc|orig|img|pre|t|prnt|film|vid)\\d{2}|sh|sitemaps|staff|phrac)\\.deviantart\\.net$"
+scope_suffix = ["*.deviantart.net"]
+
+
+# ==============================================================================
+# Global
+# ==============================================================================
+
+[global]
+log = "info"
+connect_timeout = "5s"
+resolver = "@dnspod-doh"
+ech_refresh = "1h"
+unmatched = "close"
+
+[global.http2]
+enabled = true
+probe = "warn"
+
+[ca]
+cert_path = "ca/ca.crt"
+key_path  = "ca/ca.key"
+common_name = "SNIBypassGUI Local CA"
+organization = "Racpast"
+leaf_validity_days = 397
+install_to_system_root = true
+
+[store]
+enabled = true
+dir = "certs"
+renew_margin_days = 30
+
+[cache]
+capacity = 8192
+ttl_secs = 86400
+
+[psl]
+source = "file"
+max_age = "30d"
+auto_update = true
+
+
+# ==============================================================================
+# Listeners
+# ==============================================================================
+
+[[listener]]
+addr = 443
+
+  [listener.ech]
+  mode = "doh-with-fallback"
+  config = "AEX+DQBBLQAgACAxQqjtKV8aN6XxFvuDitIIktkPDIJnbKcXPyGbTEl4ewAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA="
+  ech_domain = "cloudflare-ech.com"
+  require_ech = true
+
+
+  # ------------------------------------------------------------------------------
+  # Cloudflare
+  # ------------------------------------------------------------------------------
+
+  [[listener.route]]
+  use = "cf-optimize"
+  type = "tls"
+  match_sni = [
+    # Cloudflare
+    ".cloudflare.com", ".pages.dev",
+
+    # GameBanana
+    ".gamebanana.com",
+
+    # 紳士漫畫
+    ".qy0.ru", ".wcdn.date",
+  ]
+
+
+  # ------------------------------------------------------------------------------
+  # ECH
+  # ------------------------------------------------------------------------------
+
+  [[listener.route]]
+  match_sni = [
+    # ASMR Online
+    ".asmr.one", ".asmr-100.com", ".asmr-200.com", ".asmr-300.com",
+
+    # Bangumi 番组计划
+    ".bgm.tv", ".chii.in",
+
+    # Bluesky
+    "live-events.workers.bsky.app", "ip.bsky.app", "communities.bsky.app", "anycast.bsky.app", "app-config.workers.bsky.app", "staging.bsky.app", "endpoints.bsky.app",
+
+    # Civitai
+    ".civitai.com",
+
+    # Cloudflare
+    ".workers.dev", "dns.cloudflare.com", ".cloudflare-dns.com",
+
+    # Fandom
+    ".fandom.com",
+
+    # Greasy Fork
+    ".greasyfork.org",
+
+    # Gumroad
+    ".gumroad.com",
+
+    # Hanime1.me
+    ".hanime1.me",
+    
+    # Hysteria 2
+    "v2.hysteria.network",
+
+    # itch.io
+    ".itch.io",
+
+    # Iwara
+    ".iwara.tv", ".iwara.ai",
+
+    # konachan.com
+    ".konachan.com",
+
+    # LINUX DO
+    ".linux.do",
+
+    # Medium
+    ".medium.com",
+
+    # nicozon
+    ".nicozon.net",
+
+    # NodeSeek
+    ".nodeseek.com",
+
+    # OnlyFans
+    "onlyfans.com", "blog.onlyfans.com", "media.onlyfans.com", "store.onlyfans.com", "www.onlyfans.com", "welcome.onlyfans.com", "zendesk1.onlyfans.com", "id2.onlyfans.com", "zendesk3.onlyfans.com", "zendesk2.onlyfans.com", "merch.onlyfans.com", "zendesk4.onlyfans.com",
+
+    # Pixiv
+    ".pixiv.net", ".pximg.net",
+
+    # pixivFANBOX
+    "api.fanbox.cc",
+
+    # Pornhub
+    "mux-cf.phncdn.com", "hv-h.phncdn.com", "hm-h.phncdn.com", "hv2-h.phncdn.com", "hm-c.phncdn.com", "hm2-h.phncdn.com", "clips-cf.phncdn.com",
+
+    # Reddit
+    "pi.reddit.com", "w3-reporting.reddit.com",
+
+    # Rumble
+    "static.rumble.com",
+
+    # Substack
+    ".substack.com",
+
+    # # Urban Dictionary
+    "hb.urbandictionary.com",
+
+    # wallhaven.cc
+    ".wallhaven.cc",
+
+    # X (Twitter)
+    ".x.com", ".twimg.com", ".twitter.com", ".t.co",
+
+    # 巴哈姆特
+    ".gamer.com.tw",
+
+    # 紳士漫畫
+    ".wnacg.com", ".wnacg.ru",
+  ]
+  type = "ech"
+  use = "cf-optimize"
+
+
+  # ------------------------------------------------------------------------------
+  # NAT64 ECH
+  # ------------------------------------------------------------------------------
+
+  [[listener.route]]
+  match_sni = [
+    # ChatGPT
+    ".chatgpt.com",
+
+    # Grok
+    "grok.x.com", ".grok.com", ".x.ai", ".grokipedia.com",
+
+    # Poe
+    ".poe.com",
+
+    # Truth Social
+    ".truthsocial.com",
+  ]
+  type = "ech"
+  use = "nat64-proxy"
+
+  # Microsoft Copilot
+  [[listener.route]]
+  match_sni = ["copilot.microsoft.com"]
+  upstream = "copilot.microsoft.com.cdn.cloudflare.net"
+  type = "ech"
+  use = "nat64-proxy"
+
+
+  # ------------------------------------------------------------------------------
+  # NAT64
+  # ------------------------------------------------------------------------------
+
+  [[listener.route]]
+  match_sni = [
+    # Arena AI
+    "arena.ai",
+
+    # Bilibili
+    # "@cdn-upos", "p-bstarstatic.akamaized.net",
+
+    # Claude
+    ".claude.ai",
+
+    # MakerWorld
+    ".makerworld.com",
+
+    # SecurityTrails
+    ".securitytrails.com",
+  ]
+  type = "tls"
+  use = "nat64-proxy"
+
+  # Bilibili
+  [[listener.route]]
+  match_sni = [".bilibili.tv"]
+  upstream = "i.w.bilicdn1.com"
+  type = "tls"
+  use = "nat64-proxy"
+
+
+  # ------------------------------------------------------------------------------
+  # No SNI
+  # ------------------------------------------------------------------------------
+
+  # Bangumi 番组计划
+  # [[listener.route]]
+  # match_sni = [".bangumi.tv"]
+  # upstream = "178.79.181.137"
+  # type = "tls"
+  # override_sni = ""
+
+  [[listener.route]]
+  match_sni = [
+    # Bluesky
+    "bsky.app", "api.bsky.app", "go.bsky.app", "mod-de.bsky.app", "account.bsky.app", "mm-bounce.bsky.app", "mod-in.bsky.app", "mod.bsky.app", "bsync.bsky.app", "dev.bsky.app", "embed.bsky.app", "events.bsky.app", "cardyb.bsky.app", "gifs.bsky.app", "ogcard.bsky.app", "mod-br.bsky.app", "mod-ru.bsky.app", "evt.bsky.app", "video-origin.bsky.app", "forms.bsky.app", "mod-tr.bsky.app", "api.pop2.bsky.app", "dashy.bsky.app", "api.evt.bsky.app", "invite.bsky.app",
+
+    # Deviantart
+    "deviantart.net", "@deviantart-non-cloudfront",
+
+    # OnlyFans
+    "ws2.onlyfans.com",
+
+    # Reddit
+    "gql-realtime.reddit.com",
+  ]
+  type = "tls"
+  override_sni = ""
+  resolver = "@cloudflare-doh"
+
+
+  # ------------------------------------------------------------------------------
+  # Only DNS
+  # ------------------------------------------------------------------------------
+
+  [[listener.route]]
+  match_sni = [
+    # DLsite
+    ".dlsite.com",
+
+    # Sankaku Complex
+    ".sankakucomplex.com",
+  ]
+  type = "raw"
+  resolver = "@cloudflare-doh"
+
+
+  # ------------------------------------------------------------------------------
+  # Default
+  # ------------------------------------------------------------------------------
+
+  [listener.default_route]
+  type = "http"
+  upstream = "127.0.0.1:22222"
+  fail = "close"

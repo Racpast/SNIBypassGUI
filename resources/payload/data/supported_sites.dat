@@ -1,0 +1,197 @@
+# Copyright © 2026 Racpast. All Rights Reserved.
+#
+# This file is part of SNIBypassGUI, a proprietary software project.
+#
+# NOTICE: All information contained herein is, and remains the property of
+# Racpast. The intellectual and technical concepts contained herein are
+# proprietary to Racpast and are protected by copyright law and international
+# treaties. Dissemination of this information or reproduction of this material
+# is strictly forbidden unless prior written permission is obtained from Racpast.
+#
+# Unauthorized copying, modification, distribution, or use of this file,
+# via any medium, is strictly prohibited.
+#
+# For licensing inquiries: snibypassgui@gmail.com or racpast@gmail.com
+#
+# See the LICENSE file in the project root for full terms and conditions.
+
+IF ZH
+TEXT "以下按字母顺序分组列出了本程序支持的全部站点。"
+TEXT "站点名称后可能出现上标，用于说明连接特性及程序行为。若未"
+TEXT "出现任何上标，则该站点仅通过本地 Nginx 代理，或其 DNS"
+TEXT "解析在部分运营商网络中存在异常，此时程序会直接连接该站点。"
+TEXT "“E” 表示该站点支持 ECH。程序将通过 ECH 方式与其建立连接。"
+TEXT "“R” 表示程序将通过 IPv6 连接该站点。这可能是由于该站点存在"
+TEXT "地区限制，程序会将其 IPv4 地址转换为公共 NAT64 IPv6 地址"
+TEXT "发起连接以绕过限制，也可能出于其他原因。"
+TEXT "无论是否带有标注，各站点的实际连接速度均会受运营商、访问"
+TEXT "时段以及程序所使用的优选域名质量等因素影响，无法预先保证。"
+TEXT "如需正常使用标注 “R” 的站点，须本地网络支持公共 IPv6 访问。"
+LINK "测试 IPv6 连通性" "https://test-ipv6.com"
+ELSE
+TEXT "The following is an alphabetical list of all supported sites in this program."
+TEXT "Superscripts may appear after site names to indicate connection characteristics"
+TEXT "and program behavior. If no superscript is present, the site is accessed solely via"
+TEXT "a local Nginx proxy, or its DNS resolution is abnormal on certain Internet Service"
+TEXT "Provider (ISP) networks, in which case the program connects to it directly."
+TEXT "\"E\": Indicates that the site supports ECH (Encrypted Client Hello). The program"
+TEXT "will establish a connection using ECH."
+TEXT "\"R\": Indicates that the program will connect to the site via IPv6. This may be due"
+TEXT "to regional restrictions—where the program translates the site's IPv4 address into"
+TEXT "a public NAT64 IPv6 address to bypass restrictions—or for other reasons."
+TEXT "Regardless of whether a superscript is present, actual connection speeds for all"
+TEXT "sites are subject to factors such as your ISP, access time periods, and the quality"
+TEXT "of the optimized domain names used by the program, and therefore cannot be"
+TEXT "guaranteed in advance. Proper usage of sites marked with 'R' requires local"
+TEXT "network support for public IPv6 access."
+LINK "Test IPv6 Connectivity" "https://test-ipv6.com"
+ENDIF
+SEP
+
+TEXT "A"
+LINK "Android" "https://android.com"
+LINK "APKMirror" "https://apkmirror.com"
+LINK "Archive of Our Own" "https://archiveofourown.org"
+LINK "Arena AI ᴿ" "https://arena.ai"
+LINK "ASMR Online ᴱ" "https://asmr.one"
+SEP
+
+TEXT "B"
+LINK "Bangumi 番组计划" "https://bangumi.tv"
+LINK "Bilibili ᴿ" "https://bilibili.tv"
+LINK "Blogger" "https://blogger.com"
+LINK "Bluesky" "https://bsky.app"
+SEP
+
+TEXT "C"
+LINK "ChatGPT ᴱᴿ" "https://chatgpt.com"
+LINK "Civitai ᴱ" "https://civitai.com"
+LINK "Claude ᴿ" "https://claude.ai"
+LINK "Cloudflare DoH ᴱ" "https://cloudflare-dns.com/dns-query"
+LINK "Cloudflare Workers ᴱ" "https://welcome.developers.workers.dev"
+SEP
+
+TEXT "D"
+LINK "Deviantart" "https://deviantart.com"
+LINK "Discord" "https://discord.com"
+LINK "DLsite" "https://dlsite.com"
+LINK "Docker" "https://hub.docker.com"
+LINK "DuckDuckGo" "https://duckduckgo.com"
+SEP
+
+TEXT "E"
+LINK "E-Hentai" "https://e-hentai.org"
+LINK "Etsy" "https://etsy.com"
+SEP
+
+TEXT "F"
+LINK "F-Droid" "https://f-droid.org"
+LINK "Fandom ᴱ" "https://www.fandom.com"
+LINK "Flickr" "https://flickr.com"
+SEP
+
+TEXT "G"
+LINK "Gelbooru" "https://gelbooru.com"
+LINK "Gemini" "https://gemini.google.com"
+LINK "Google Scholar" "https://scholar.google.com"
+LINK "Google Search" "https://google.com"
+LINK "Google Translate" "https://translate.google.com"
+LINK "Gmail" "https://gmail.com"
+LINK "Gravatar" "https://gravatar.com"
+LINK "Greasy Fork ᴱ" "https://greasyfork.org"
+LINK "Grok ᴱᴿ" "https://grok.com"
+LINK "Gumroad ᴱ" "https://gumroad.com"
+SEP
+
+TEXT "H"
+LINK "Hanime1.me ᴱ" "https://hanime1.me"
+SEP
+
+TEXT "I"
+LINK "Imgur" "https://imgur.com"
+LINK "itch.io ᴱ" "https://itch.io"
+LINK "Iwara ᴱ" "https://iwara.tv"
+SEP
+
+TEXT "K"
+LINK "konachan.com ᴱ" "https://konachan.com"
+SEP
+
+TEXT "L"
+LINK "LINUX DO ᴱ" "https://linux.do"
+SEP
+
+TEXT "M"
+LINK "MakerWorld ᴿ" "https://makerworld.com"
+LINK "Medium ᴱ" "https://medium.com"
+LINK "Microsoft Copilot ᴱᴿ" "https://copilot.microsoft.com"
+LINK "Microsoft OneDrive" "https://onedrive.live.com"
+SEP
+
+TEXT "N"
+LINK "nicozon ᴱ" "https://nicozon.net"
+LINK "NodeSeek ᴱ" "https://www.nodeseek.com"
+LINK "Nyaa" "https://nyaa.si"
+SEP
+
+TEXT "O"
+LINK "OnlyFans ᴱ" "https://onlyfans.com"
+SEP
+
+TEXT "P"
+LINK "Pinterest" "https://pinterest.com"
+LINK "Pixiv ᴱ" "https://pixiv.net"
+LINK "Poe ᴱᴿ" "https://poe.com"
+LINK "Pornhub" "https://pornhub.com"
+LINK "Prismic" "https://images.prismic.io"
+SEP
+
+TEXT "Q"
+LINK "Quora" "https://quora.com"
+SEP
+
+TEXT "R"
+LINK "Reddit" "https://reddit.com"
+LINK "RFI" "https://rfi.fr"
+LINK "Rumble" "https://rumble.com"
+LINK "RUTUBE" "https://rutube.ru"
+SEP
+
+TEXT "S"
+LINK "Sankaku Complex" "https://sankakucomplex.com"
+LINK "SecurityTrails ᴿ" "https://securitytrails.com"
+LINK "Substack ᴱ" "https://substack.com"
+SEP
+
+TEXT "T"
+LINK "Telegram" "https://web.telegram.org"
+LINK "TheTVDB" "https://thetvdb.com"
+LINK "Truth Social ᴱᴿ" "https://truthsocial.com"
+SEP
+
+TEXT "U"
+LINK "Urban Dictionary" "https://urbandictionary.com"
+SEP
+
+TEXT "V"
+LINK "V2EX" "https://v2ex.com"
+# LINK "Vercel" "https://hello.vercel.app"
+SEP
+
+TEXT "W"
+LINK "wallhaven.cc ᴱ" "https://wallhaven.cc"
+SEP
+
+TEXT "X"
+LINK "X (Twitter) ᴱ" "https://x.com"
+LINK "XNXX.COM" "https://xnxx.com"
+LINK "XVIDEOS.COM" "https://xvideos.com"
+SEP
+
+TEXT "Y"
+LINK "Youtube ᴿ" "https://youtube.com"
+SEP
+
+TEXT "#"
+LINK "巴哈姆特 ᴱ" "https://www.gamer.com.tw"
+LINK "紳士漫畫 ᴱ" "https://wncag.com"

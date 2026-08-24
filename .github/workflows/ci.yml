@@ -1,0 +1,300 @@
+# Copyright © 2026 Racpast. All Rights Reserved.
+#
+# This file is part of SNIBypassGUI, a proprietary software project.
+#
+# NOTICE: All information contained herein is, and remains the property of
+# Racpast. The intellectual and technical concepts contained herein are
+# proprietary to Racpast and are protected by copyright law and international
+# treaties. Dissemination of this information or reproduction of this material
+# is strictly forbidden unless prior written permission is obtained from Racpast.
+#
+# Unauthorized copying, modification, distribution, or use of this file,
+# via any medium, is strictly prohibited.
+#
+# For licensing inquiries: snibypassgui@gmail.com or racpast@gmail.com
+#
+# See the LICENSE file in the project root for full terms and conditions.
+
+name: CI & Release
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      confirm_downgrade:
+        description: "Force-align the channel to an OLDER version (deletes current + higher tags/Releases)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# Required repository configuration:
+#   secrets.SNIB_SIGNING_KEY   PEM contents of signing_key.pem (the ECDSA P-256
+#                              private key from `snibrelease.py keygen`).
+#   secrets.PAGES_DEPLOY_TOKEN A PAT (or deploy key) that can push to the
+#                              Cloudflare Pages content repository.
+#   vars.PAGES_REPO            "owner/repo" of that Pages repository.
+#   vars.PAGES_SUBDIR          Subdir the client fetches from (default
+#                              "snibypassgui"; must match UPDATE_MANIFEST_URL).
+#   vars.UPDATE_MANIFEST_URL   (optional) live manifest URL used to read the online
+#                              version; defaults to the snibypassgui channel below.
+# NOTE: src/update/public_key.h (the PUBLIC key) must be committed so the built
+#       exe can verify what this workflow signs.
+
+jobs:
+  build-test-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0          # full history + tags: needed for release steps
+
+      - name: Verify MinGW-w64 toolchain
+        shell: pwsh
+        run: |
+          $bin = 'C:\mingw64\bin'
+          if (-not (Test-Path (Join-Path $bin 'gcc.exe'))) { throw "MinGW-w64 not found at $bin" }
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          & (Join-Path $bin 'gcc.exe') --version
+
+      # ---- CI: Build + Test (always runs) ----
+      - name: Configure (with tests)
+        run: cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_RC_COMPILER=windres -DSNIB_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Run unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Upload executable (artifact for inspection)
+        uses: actions/upload-artifact@v7
+        with:
+          name: SNIBypassGUI-exe
+          path: build/SNIBypassGUI.exe
+
+      # ---- Release: only on push/manual trigger to main ----
+      - name: Set up Python
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install release deps
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        run: pip install cryptography pyyaml
+
+      - name: Write version-compare helper
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/vercmp.py" <<'PY'
+          import sys, re
+          def parts(s):
+              s = s[1:] if s[:1] in 'vV' else s
+              return [int(re.sub(r'\D', '', c) or '0') for c in s.split('.')] if s else []
+          def cmp(a, b):
+              pa, pb = parts(a), parts(b)
+              n = max(len(pa), len(pb)); pa += [0]*(n-len(pa)); pb += [0]*(n-len(pb))
+              return (pa > pb) - (pa < pb)
+          print(cmp(sys.argv[1], sys.argv[2]))
+          PY
+
+      - name: Resolve local version
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        id: ver
+        shell: bash
+        run: |
+          ver="$(grep -oP '#define\s+APP_VERSION_NUM\s+L"\K[^"]+' src/app/version.h)"
+          if [ -z "$ver" ]; then
+            echo "APP_VERSION_NUM not found in src/app/version.h" >&2
+            exit 1
+          fi
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "Local APP_VERSION_NUM = $ver"
+
+      - name: Decide publish mode
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        id: decide
+        shell: bash
+        env:
+          MANIFEST_URL: ${{ vars.UPDATE_MANIFEST_URL || 'https://update.rpnet.cc/snibypassgui/manifest.json' }}
+          LOCAL_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          online="$(curl -fsSL "$MANIFEST_URL" 2>/dev/null \
+                    | python -c 'import sys,json;print(json.load(sys.stdin).get("version",""))' 2>/dev/null || true)"
+          if [ -z "$online" ]; then
+            echo "No online manifest reachable; treating this as the first full release."
+            mode="higher"
+          else
+            c="$(python "$RUNNER_TEMP/vercmp.py" "$LOCAL_VERSION" "$online")"
+            if   [ "$c" -gt 0 ]; then mode="higher"
+            elif [ "$c" -eq 0 ]; then mode="equal"
+            else                      mode="lower"
+            fi
+          fi
+          echo "Local=$LOCAL_VERSION  Online=${online:-<none>}  ->  mode=$mode"
+          echo "online=$online" >> "$GITHUB_OUTPUT"
+          echo "mode=$mode"     >> "$GITHUB_OUTPUT"
+
+      - name: Gate downgrade
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.decide.outputs.mode == 'lower'
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.confirm_downgrade }}" = "true" ]; then
+            echo "Downgrade confirmed: will force-align the channel to ${{ steps.ver.outputs.version }} (online is ${{ steps.decide.outputs.online }})."
+          else
+            echo "::error::Local version ${{ steps.ver.outputs.version }} is LOWER than the published channel (${{ steps.decide.outputs.online }})."
+            echo "::error::This is a downgrade. Re-run from the Actions tab via 'Run workflow' with confirm_downgrade=true to force-align the channel."
+            exit 1
+          fi
+
+      - name: Write signing key
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        shell: bash
+        run: printf '%s' "${{ secrets.SNIB_SIGNING_KEY }}" > signing_key.pem
+
+      - name: Pack + sign
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          python tools/snibrelease.py pack \
+            --exe build/SNIBypassGUI.exe \
+            --version "${{ steps.ver.outputs.version }}" \
+            --notes-file changelog.yaml \
+            --key signing_key.pem \
+            --out dist
+
+      - name: Verify dist (client-side check)
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        run: python tools/snibrelease.py verify --dist dist --header src/update/public_key.h
+
+      - name: Remove signing key
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        shell: bash
+        run: rm -f signing_key.pem
+
+      # ---- Downgrade only: force-align the channel head to the older build. ----
+      - name: Force-align (delete current + higher tags/Releases)
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.decide.outputs.mode == 'lower'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOCAL_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          for tag in $(git tag -l 'v*'); do
+            c="$(python "$RUNNER_TEMP/vercmp.py" "${tag#v}" "$LOCAL_VERSION")"
+            if [ "$c" -ge 0 ]; then
+              echo "Removing tag/Release $tag (>= $LOCAL_VERSION)"
+              gh release delete "$tag" --yes 2>/dev/null || true
+              git push origin ":refs/tags/$tag" 2>/dev/null || true
+              git tag -d "$tag" 2>/dev/null || true
+            fi
+          done
+
+      # ---- Full release (higher OR confirmed downgrade): tag + zip + Release. ----
+      - name: Create and push tag
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.decide.outputs.mode != 'equal'
+        shell: bash
+        env:
+          LOCAL_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          git config user.name "racpast"
+          git config user.email "racpast@gmail.com"
+          git tag -f "v$LOCAL_VERSION"
+          git push -f origin "v$LOCAL_VERSION"
+
+      - name: Stage + zip extract-and-run tree
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.decide.outputs.mode != 'equal'
+        shell: bash
+        run: |
+          cmake --install build --prefix stage
+          ( cd stage && 7z a -tzip "../SNIBypassGUI-v${{ steps.ver.outputs.version }}.zip" . )
+
+      # ---- Every mode publishes the update tree. ----
+      - name: Publish update tree to the Pages repository
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+          PAGES_REPO: ${{ vars.PAGES_REPO }}
+          PAGES_SUBDIR: ${{ vars.PAGES_SUBDIR }}
+        run: |
+          set -e
+          subdir="${PAGES_SUBDIR:-snibypassgui}"
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${PAGES_REPO}.git" pages
+          dest="pages/${subdir}"
+          mkdir -p "$dest/blobs"
+
+          printf '%s\n' \
+            '# Update trees are content-addressed; bytes must round-trip verbatim.' \
+            '* -text' \
+            '*.chunk binary' \
+            '*.json -text' \
+            '*.sig binary' \
+            > pages/.gitattributes
+          git -C pages config core.autocrlf false
+
+          cp dist/manifest.json dist/manifest.json.sig "$dest/"
+          cp -r dist/blobs/* "$dest/blobs/" 2>/dev/null || true
+          cd pages
+          git config user.name "racpast"
+          git config user.email "racpast@gmail.com"
+          git add -A
+          git commit -m "chore(release): publish ${{ steps.ver.outputs.version }} update tree (${{ steps.decide.outputs.mode }})" || echo "no changes"
+          git push
+
+      - name: Compose release body
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.decide.outputs.mode != 'equal'
+        id: body
+        shell: bash
+        env:
+          LOCAL_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -e
+          body="$RUNNER_TEMP/release_body.md"
+          : > "$body"
+
+          if [ -f release_preamble.md ]; then
+            cat release_preamble.md >> "$body"
+            printf '\n\n' >> "$body"
+          fi
+
+          prev=""
+          for tag in $(git tag -l 'v*'); do
+            c="$(python "$RUNNER_TEMP/vercmp.py" "${tag#v}" "$LOCAL_VERSION")"
+            [ "$c" -lt 0 ] || continue
+            if [ -z "$prev" ] || [ "$(python "$RUNNER_TEMP/vercmp.py" "${tag#v}" "${prev#v}")" -gt 0 ]; then
+              prev="$tag"
+            fi
+          done
+
+          if [ -n "$prev" ]; then
+            range="${prev}..HEAD"
+            echo "Changelog range: $range"
+          else
+            range="HEAD"
+            echo "No previous tag; listing full history up to HEAD."
+          fi
+
+          {
+            echo "## Changelog"
+            git log --format='* %H %s' "$range"
+          } >> "$body"
+
+          echo "path=$body" >> "$GITHUB_OUTPUT"
+          echo "---- release body ----"
+          cat "$body"
+
+      - name: Publish GitHub Release
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.decide.outputs.mode != 'equal'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: v${{ steps.ver.outputs.version }}
+          body_path: ${{ steps.body.outputs.path }}
+          files: |
+            SNIBypassGUI-v${{ steps.ver.outputs.version }}.zip

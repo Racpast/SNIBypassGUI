@@ -1,0 +1,44 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "windows-mingw",
+      "displayName": "Windows (MinGW-w64, static release)",
+      "description": "Static, stripped GUI release build using MinGW-w64 g++/gcc/windres.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_RC_COMPILER": "windres"
+      }
+    },
+    {
+      "name": "windows-mingw-make",
+      "inherits": "windows-mingw",
+      "displayName": "Windows (MinGW-w64) — MinGW Makefiles",
+      "description": "Same as windows-mingw but uses MinGW Makefiles (no Ninja required).",
+      "generator": "MinGW Makefiles"
+    },
+    {
+      "name": "windows-mingw-tests",
+      "inherits": "windows-mingw",
+      "displayName": "Windows (MinGW-w64) + tests",
+      "cacheVariables": { "SNIB_BUILD_TESTS": "ON" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "windows-mingw",       "configurePreset": "windows-mingw" },
+    { "name": "windows-mingw-make",  "configurePreset": "windows-mingw-make" },
+    { "name": "windows-mingw-tests", "configurePreset": "windows-mingw-tests" }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-mingw-tests",
+      "configurePreset": "windows-mingw-tests",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+# User-facing release notes, newest entry FIRST.
+#
+# The release CI reads ONLY the top entry and injects its `en` / `zh-CN` text
+# into the signed manifest's `notes`, which the client shows on its update
+# check. Notes describe ONE publish, not a version: a data-only refresh keeps
+# the same APP_VERSION_NUM yet still gets its own entry here (e.g. "updated a
+# site's IP"), because that publish cuts no GitHub Release and the manifest note
+# is the only way users learn what changed.
+#
+# Before every push to main, PREPEND a new entry describing that push. Keep each
+# note short and user-facing (not a commit log).
+#
+# The entry consumed is chosen by POSITION (the topmost one), never by `version`
+# or `date` — those two fields are human-only labels and are free to repeat. So
+# two publishes on the same day, or two data-only refreshes at the same version,
+# are fine: just prepend a second entry on top for the second push. The only
+# rule is one prepend per push.
+#
+# Block scalars (`|`) preserve line breaks; write one bullet per line.
+
+# --- newest first; CI reads the topmost entry ---
+
+- version: "5.0.0"
+  date: "2026-08-24"
+  en: |
+    Initial public release.
+  zh-CN: |
+    首次公开发布。

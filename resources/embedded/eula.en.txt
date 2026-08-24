@@ -1,0 +1,302 @@
+SNIBypassGUI End-User License Agreement
+Version 2.0
+Effective Date: August 24, 2026
+
+========================================
+
+IMPORTANT NOTICE
+
+By downloading, installing, or using SNIBypassGUI (the "Software"), you acknowledge that you have read, understood, and agree to be bound by all terms of this Agreement. If you do not agree, you must immediately cease using and uninstall the Software.
+
+This is a binding legal agreement between you and Racpast (the "Author"). Read it carefully.
+
+========================================
+
+I. DEFINITIONS
+
+1.1 "Software" means the SNIBypassGUI application in executable form, including all binary files, runtime libraries, configuration data, operational data files, documentation, and updates delivered through the Software's update mechanism or from an official distribution channel.
+
+1.2 "Author" means Racpast, the copyright holder and licensor of the Software.
+
+1.3 "You" or "User" means the natural person or legal entity that downloads, installs, executes, or uses the Software.
+
+1.4 "Payload Data" means all operational data distributed with or as part of the Software, including nginx configuration files and fragments, supported-site lists, domain-to-address mappings, DNS rule sets, resolver and connection definitions, update manifests, and any other data file the Software consumes at runtime.
+
+1.5 "Third-Party Services" means any online service, platform, website, application, game, streaming provider, or network operated by an entity other than the Author, including services you access through or in connection with the Software.
+
+1.6 "Personal Use" means use by a single natural person, on equipment that person owns or controls, for that person's own purposes and not for the benefit of any organization or in any commercial, workplace, or revenue-generating context.
+
+========================================
+
+II. LICENSE GRANT AND SCOPE
+
+2.1 Limited License
+
+Subject to your compliance with this Agreement, the Author grants you a limited, personal, revocable, non-exclusive, non-transferable, non-sublicensable license to install and run the Software in executable form solely for Personal Use as defined in Section 1.6.
+
+This license does not authorize: (a) use in any commercial, workplace, or production environment; (b) use on behalf of or for the benefit of any organization, corporation, or other entity; (c) use in exchange for payment or other consideration; (d) any use that generates revenue or supports a revenue-generating activity.
+
+2.2 Source Code Publication Is Not a License
+
+The Author publishes the Software's source code for transparency and security verification only. You may view the source code through the public repository to satisfy yourself as to what the Software does. Viewing does NOT grant you any right to compile, build, execute, modify, adapt, port, translate, reuse, or create any derivative work from the source code. The complete terms governing source code are in the LICENSE file in the repository. That file controls; this Agreement supplements it for users of Binary Releases.
+
+2.3 What You May Do
+
+You may: (a) download an official Binary Release from a distribution channel the Author operates or designates; (b) install the Software on a computer you own or control; (c) run the Software for Personal Use; (d) configure the Software using only the controls, options, and interface the Software itself provides; (e) uninstall the Software at any time.
+
+2.4 What You May Not Do
+
+You explicitly agree that you will NOT: (a) compile, build, or create an executable from the source code; (b) modify, reverse engineer, decompile, or disassemble any part of the Software, except to the extent that applicable law expressly prohibits this restriction for the limited purpose of achieving interoperability, and then only to that extent; (c) directly edit, modify, manually alter, replace, or delete any file the Software installs, uses, or manages — including but not limited to nginx configuration files, DNS rule files, supported-site lists, certificates, resolver definitions, or any file in the Software's installation directory — except through the Software's own user interface or through replacement of a third-party component explicitly permitted by the LICENSE file; (d) bypass, disable, defeat, or circumvent any validation mechanism, integrity check, update verification, safety check, access control, or other technical measure the Software employs, except as expressly permitted by Section 2.4(c) for replacement of third-party components; (e) extract, parse, scrape, harvest, copy, transcribe, convert, reformat, or otherwise obtain the Payload Data or any substantial portion of it, whether by hand, by script, by tool, or by any other means, and whether from an installed copy, from memory, from network traffic, from an update package, or from any other source; (f) write, use, publish, or distribute any script, tool, parser, converter, or program designed to extract, transform, or reformat the Payload Data; (g) use, incorporate, republish, redistribute, or make available the Payload Data or any portion of it in any other software, service, dataset, or configuration set, whether competing with the Software or not; (h) distribute, publish, mirror, sublicense, sell, rent, lease, lend, or transfer the Software or any copy of it to any third party; (i) repackage, rebrand, or redistribute the Software under any name; (j) remove, obscure, or alter any copyright notice, license text, attribution, or proprietary legend; (k) misrepresent the origin or authorship of the Software; (l) disable, bypass, or circumvent the automatic update mechanism.
+
+2.5 Configuration Changes Through the UI Only
+
+All configuration changes must be made exclusively through the controls and options the Software's user interface provides. Manual editing of configuration files, direct modification of operational data, and any change made outside the Software's intended operational flow are strictly prohibited. Such modifications: (a) void all technical support and any warranty; (b) may cause the Software to malfunction or fail; (c) constitute a breach of this Agreement.
+
+The Author accepts no responsibility for any issue, malfunction, data loss, or other consequence arising from unauthorized modification of files the Software uses or manages.
+
+2.6 No Rights in Payload Data
+
+The Payload Data is a proprietary compilation. You acquire no ownership, license, or other right in it beyond the right to have the Software use it on your behalf in the ordinary course of the Software's operation. You may not treat it as your own, may not extract it, and may not use it for any purpose outside the Software.
+
+========================================
+
+III. NATURE AND PURPOSE OF THE SOFTWARE
+
+3.1 What the Software Does
+
+SNIBypassGUI is a network utility that intercepts DNS queries, operates a local proxy, and routes certain requests to addresses and connection methods specified in the Payload Data. The techniques it demonstrates — SNI routing, DNS redirection, and local TLS termination — are used in legitimate contexts including content delivery networks, load balancing, privacy research, and network diagnostics.
+
+3.2 Intended Use
+
+The Software is intended for lawful purposes, including: (a) network debugging and diagnostics; (b) privacy research and education; (c) technical experimentation in a controlled environment; (d) personal exploration of networking concepts.
+
+The Author does not encourage, endorse, or support any unlawful use.
+
+3.3 Not a Circumvention Tool
+
+The Software is not designed or offered as a means to circumvent lawfully established network management measures, content filters, access controls, or geographic restrictions imposed by any government, organization, or service provider. If you configure or use the Software for such a purpose, you do so at your own risk, on your own initiative, and in your own judgment as to the lawfulness of that use. The Author makes no representation that any such use is lawful and accepts no responsibility for it.
+
+3.4 Your Responsibility to Assess Legality
+
+You are solely responsible for determining whether your possession, installation, and use of the Software comply with all applicable laws, regulations, and orders in your jurisdiction and with the terms of service of any Third-Party Service you access. The Author makes no representation that the Software is legal, appropriate, or authorized for use in any particular country, region, or context.
+
+========================================
+
+IV. COMPLIANCE, RISK, AND YOUR OBLIGATIONS
+
+4.1 Legal Compliance
+
+You must ensure that your use of the Software complies with: (a) all applicable criminal, civil, and administrative laws and regulations; (b) all orders, licenses, and restrictions imposed by governmental or regulatory authorities; (c) the terms of service, acceptable use policies, and community standards of any Third-Party Service you access; (d) any contractual obligation you are subject to, including employment agreements, network use policies, and institutional codes of conduct.
+
+4.2 Prohibited Uses
+
+You may not use the Software: (a) to access, transmit, or facilitate access to content that is unlawful in your jurisdiction; (b) to launch or facilitate any attack, intrusion, or unauthorized access to any computer, network, system, or service; (c) to steal, intercept, or exfiltrate data; (d) to infringe any intellectual property right; (e) to violate any person's privacy; (f) to circumvent access controls or content restrictions that applicable law makes it unlawful to circumvent; (g) in any manner that endangers national security, public safety, or the lawful rights of others.
+
+4.3 Risk Acknowledgment
+
+You acknowledge and accept that: (a) downloading and using the Software is entirely voluntary; (b) you have independently assessed the legal, technical, financial, and reputational risks of using the Software in your jurisdiction and in your circumstances; (c) all such risks are borne solely by you; (d) the Author has made no representation to you that use of the Software is safe, lawful, undetectable, or free of adverse consequence.
+
+4.4 Third-Party Service Risks
+
+You acknowledge and accept that: (a) use of the Software may modify network traffic in ways that violate the terms of service of Third-Party Services, including but not limited to online platforms, streaming services, gaming networks, e-commerce sites, financial services, and communications providers; (b) such violations may result in suspension, termination, or permanent banning of your account; (c) you may lose access to content, subscriptions, account balances, virtual goods, in-game assets, saved data, purchased items, and any other thing of value associated with a suspended or terminated account; (d) Third-Party Services may employ detection methods, and the Author does not guarantee that use of the Software will be undetectable; (e) the Author has no relationship with, no control over, and no responsibility for the acts or omissions of any Third-Party Service, including their enforcement decisions.
+
+4.5 Jurisdictional Legal Risks
+
+You acknowledge and accept that: (a) the Software's functionality may be regulated, restricted, or prohibited by law in certain countries, regions, or jurisdictions; (b) possession, installation, or use of tools that manipulate network traffic, DNS resolution, or TLS connections may be unlawful in certain places regardless of how you use them; (c) circumvention of network restrictions, content filters, access controls, or geographic limitations may constitute a criminal offense, a civil violation, or an administrative infraction in some jurisdictions; (d) cross-border use — including accessing content restricted to a particular region or licensed only for distribution in certain territories — may violate international agreements, export controls, trade regulations, or content licensing terms; (e) you are solely responsible for knowing and complying with the laws applicable to you.
+
+4.6 No Liability for Consequences of Your Use
+
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR: (a) investigation, arrest, prosecution, detention, conviction, fine, forfeiture, confiscation, or any other consequence under criminal law; (b) lawsuit, judgment, damages, restitution, or any other consequence under civil law; (c) administrative penalty, sanction, license revocation, cease-and-desist order, or any other consequence imposed by a regulatory or governmental authority; (d) account suspension, termination, or ban by any Third-Party Service; (e) loss of access to content, data, funds, virtual items, or anything else of value; (f) immigration consequence, including visa denial, entry refusal, travel restriction, or deportation; (g) employment termination, professional discipline, security clearance revocation, or reputational harm; (h) any legal, administrative, quasi-judicial, or enforcement proceeding of any kind arising from or related to your use of the Software.
+
+You bear all such consequences alone.
+
+4.7 Indemnification
+
+If your use of the Software results in any claim, demand, investigation, proceeding, loss, liability, damage, fine, penalty, judgment, settlement, cost, or expense (including reasonable attorneys' fees) against or incurred by the Author, you will indemnify, defend, and hold the Author harmless from all of it. This obligation survives termination of this Agreement.
+
+========================================
+
+V. PAYLOAD DATA PROTECTION
+
+5.1 Proprietary Compilation
+
+The Payload Data is a compilation work protected under applicable copyright law. The selection, coordination, and arrangement of its contents represent months of systematic empirical testing and original creative work by the Author. You acquire no right in the compilation, in its selection or arrangement, or in the expression of its organization.
+
+5.2 Absolute Prohibition on Extraction and Reuse
+
+You are absolutely prohibited from: (a) extracting, harvesting, scraping, parsing, copying, or transcribing the Payload Data or any substantial portion of it, in any format, by any means, and from any source — including an installed copy of the Software, an update package, the source repository, network traffic, or memory; (b) converting, reformatting, translating, or transforming the Payload Data into any other format or structure; (c) using any portion of the Payload Data in any other software, tool, service, configuration set, dataset, knowledge base, or distribution, whether competing with the Software or not, and whether the use is commercial or noncommercial; (d) republishing, redistributing, or making available the Payload Data or any portion of it; (e) writing, publishing, using, or distributing any tool, script, program, or service whose purpose or effect is to extract, parse, convert, or reuse the Payload Data.
+
+This prohibition applies regardless of whether you attribute the source and regardless of the purpose for which you would use the data. The Payload Data is not provided for your reuse. It is provided solely for the Software's operation on your system.
+
+5.3 Enforcement
+
+Violation of this Section constitutes: (a) copyright infringement under applicable law, entitling the Author to all remedies available for infringement; (b) breach of this Agreement, entitling the Author to termination under Section IX, to injunctive relief, and to damages; (c) in appropriate cases, violation of the Digital Millennium Copyright Act or comparable law.
+
+The Author will enforce this Section to the fullest extent the law permits.
+
+========================================
+
+VI. AUTOMATIC UPDATES
+
+6.1 Update Mechanism
+
+The Software may automatically download and install updates from servers the Author operates or designates. Updates may: (a) modify, add, or remove functionality; (b) update the Payload Data; (c) modify this Agreement or the terms under which the Software is licensed; (d) update Third-Party Components to newer or different versions; (e) change the Software's behavior, appearance, or performance characteristics.
+
+Updates occur without prior notice to you. You may not disable, bypass, or circumvent the update mechanism.
+
+6.2 Acceptance of Updates
+
+Continued use of the Software after an update is delivered constitutes your acceptance of the updated Software and of any modifications to this Agreement distributed with that update. If you do not accept an update, your sole remedy is to cease using the Software and uninstall it under Section IX.
+
+6.3 Mandatory Nature
+
+Updates are mandatory. The Author may, at any time and in the Author's sole discretion, require that you install an update as a condition of continued use, or may cause the Software to cease functioning if an update is not installed. The Author may discontinue support for older versions without notice.
+
+========================================
+
+VII. WARRANTY DISCLAIMER
+
+7.1 AS IS AND AS AVAILABLE
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT ANY WARRANTY OF ANY KIND. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE AUTHOR DISCLAIMS ALL WARRANTIES, WHETHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, INCLUDING BUT NOT LIMITED TO: (a) any implied warranty of merchantability; (b) any implied warranty of fitness for a particular purpose; (c) any implied warranty of title or non-infringement; (d) any warranty of accuracy, reliability, completeness, currentness, or usefulness; (e) any warranty that the Software will meet your requirements, operate uninterrupted, operate error-free, or be secure; (f) any warranty that defects will be corrected; (g) any warranty arising from course of dealing, usage, or trade practice.
+
+7.2 No Guarantee of Function or Result
+
+The Author does not warrant: (a) that the Software will successfully bypass, evade, or circumvent any network restriction, content filter, DNS control, access control, geographic limitation, or other technical measure; (b) that use of the Software will be undetectable by any party; (c) that the Payload Data is complete, accurate, current, or will remain functional; (d) that any Third-Party Service will remain accessible through the Software; (e) that any particular site, domain, or service will function correctly or at all; (f) that use of the Software will not result in adverse consequences.
+
+You use the Software at your own risk, in your own judgment, and on your own initiative. The Author makes no promise as to what the Software will accomplish for you.
+
+7.3 Third-Party Components and Services
+
+The Software incorporates Third-Party Components and may enable access to Third-Party Services. The Author makes no warranty regarding any such component or service. They are provided by their respective owners and operators. Any warranty, if any exists, is between you and them. The Author disclaims all responsibility for the availability, functionality, legality, security, accuracy, or any other attribute of any Third-Party Component or Third-Party Service.
+
+7.4 Security
+
+No software is perfectly secure. The Author does not warrant that the Software is free from vulnerabilities, that it will protect you from any threat, or that its use will not expose you to risk. You are solely responsible for the security of your system and for the consequences of any security incident.
+
+7.5 Basis of the Bargain
+
+This disclaimer is an essential part of the agreement between you and the Author. The Author would not make the Software available without it. Where applicable law does not permit disclaimer of implied warranties, any such warranty is limited in duration to the minimum period the law requires and extends only to the original licensee.
+
+========================================
+
+VIII. LIMITATION OF LIABILITY
+
+8.1 No Liability for Damages
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE AUTHOR BE LIABLE TO YOU OR TO ANY THIRD PARTY FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, CONSEQUENTIAL, OR OTHER DAMAGES OF ANY KIND, HOWEVER CAUSED AND UNDER ANY THEORY OF LIABILITY — WHETHER IN CONTRACT, STRICT LIABILITY, TORT (INCLUDING NEGLIGENCE), BREACH OF WARRANTY, MISREPRESENTATION, OR OTHERWISE — ARISING OUT OF OR IN ANY WAY RELATED TO THE SOFTWARE, ITS USE, YOUR INABILITY TO USE IT, ANY UPDATE, ANY MALFUNCTION, ANY THIRD-PARTY SERVICE, OR THIS AGREEMENT, EVEN IF THE AUTHOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+8.2 Examples of Excluded Damages
+
+The exclusion in Section 8.1 applies to all damages and losses, including without limitation: (a) loss of use, data, revenue, profit, business, opportunity, goodwill, or reputation; (b) cost of substitute goods or services; (c) system damage, corruption, or failure; (d) account suspension, termination, or ban; (e) loss of access to purchased or subscribed content, services, or digital goods; (f) legal fees, fines, penalties, judgments, or settlements; (g) arrest, prosecution, conviction, or any other consequence under criminal law; (h) lawsuit, liability, or any other consequence under civil law; (i) administrative sanction, regulatory action, or governmental proceeding; (j) immigration consequence, travel restriction, or border detention; (k) employment termination, professional discipline, or reputational harm; (l) any other pecuniary or non-pecuniary loss.
+
+8.3 Liability Cap
+
+If, notwithstanding Sections 7 and 8.1, the Author is found liable to you for any reason, the Author's total cumulative liability to you for all claims of every kind shall not exceed the amount you actually paid to the Author for the Software. For Software distributed at no charge, this amount is zero, and you acknowledge that you have no monetary remedy against the Author.
+
+8.4 Essential Term
+
+This limitation of liability is a fundamental, essential, and bargained-for term of this Agreement. The Author would not make the Software available without it. Where applicable law restricts limitations of liability for death or personal injury caused by negligence, or for fraud, gross negligence, or willful misconduct, this Section is limited to that extent and otherwise remains fully in force.
+
+8.5 Allocation of Risk
+
+You acknowledge that the provisions of Sections VII and VIII allocate the risks of the Software's use between you and the Author, that the Author's licensing decision and the permissions granted reflect that allocation, and that these provisions form an essential basis of the bargain between you and the Author.
+
+========================================
+
+IX. TERMINATION
+
+9.1 Automatic Termination
+
+This Agreement and your license to use the Software terminate automatically, immediately, and without notice if you breach any provision of this Agreement. The Author is not required to notify you of termination. Your breach is sufficient.
+
+9.2 Termination by the Author
+
+The Author may terminate this Agreement and your license at any time, for any reason or for no reason, by notice to you or by discontinuing distribution or support of the Software. The Author is under no obligation to continue making the Software available.
+
+9.3 Effect of Termination
+
+Upon termination, you must immediately: (a) cease all use of the Software; (b) uninstall the Software from all equipment; (c) delete all copies of the Software, the Payload Data, and any extracted, derived, or copied material in your possession or control; (d) if the Author requests it, certify in writing that you have done so.
+
+Termination does not relieve you of liability incurred before termination, does not excuse any breach, and does not waive any remedy available to the Author.
+
+9.4 Survival
+
+The following survive termination and continue in full force: Sections I (Definitions), II.4 and II.6 (Restrictions and Payload Data), IV.7 (Indemnification), V (Payload Data Protection), VII (Warranty Disclaimer), VIII (Limitation of Liability), IX.3 and IX.4 (Effect of Termination and Survival), and X (General Provisions).
+
+9.5 No Refund
+
+Termination does not entitle you to any refund, credit, or other consideration. Where the Software was provided without charge, there is nothing to refund.
+
+========================================
+
+X. GENERAL PROVISIONS
+
+10.1 Governing Law and Jurisdiction
+
+This Agreement is governed by the laws of the State of California and by United States federal law, without regard to conflict-of-law principles. You consent to the exclusive jurisdiction of the state and federal courts located in the Northern District of California for any action arising out of or relating to this Agreement or the Software, and you waive any objection to venue or inconvenience of forum in those courts.
+
+Where you are located within the territorial boundaries of the People's Republic of China (excluding Hong Kong SAR, Macau SAR, and Taiwan), or are a PRC citizen, or are subject to PRC jurisdiction, the Author reserves the right to pursue remedies alternatively or concurrently under PRC law and before PRC administrative and judicial authorities, in the Author's sole discretion and election. This does not waive or limit any right in any other forum.
+
+10.2 Entire Agreement
+
+This Agreement, together with the LICENSE file published in the Software's source repository, constitutes the entire agreement between you and the Author regarding the Software and supersedes all prior or contemporaneous communications, representations, or agreements, whether written or oral. No term in any document you submit will modify, add to, or supersede this Agreement.
+
+10.3 Amendment
+
+The Author may modify this Agreement at any time by publishing an updated version with the Software or in the repository. The updated version applies to your continued use of any version of the Software obtained before or after the update. Your continued use after the effective date of an update constitutes acceptance. If you do not accept an update, cease use and uninstall under Section IX. You are responsible for reviewing this Agreement periodically.
+
+10.4 Severability
+
+If any provision of this Agreement is held invalid, illegal, or unenforceable, that provision will be modified to the minimum extent necessary to make it enforceable, or if it cannot be made enforceable, it will be severed. The remainder of this Agreement will remain in full force. Invalidity in one jurisdiction does not affect validity in another.
+
+10.5 No Waiver
+
+The Author's failure to enforce any provision, or to exercise any right, is not a waiver and does not prevent later enforcement or exercise. A waiver is effective only if in writing and signed by the Author, and applies only to the specific instance stated in the waiver.
+
+10.6 No Assignment by You
+
+You may not assign, transfer, delegate, or sublicense your rights or obligations under this Agreement without the Author's prior written consent, and any attempt to do so is void. The Author may assign this Agreement without restriction. This Agreement binds and benefits the parties and their permitted successors and assigns.
+
+10.7 Relationship of the Parties
+
+This Agreement does not create any partnership, joint venture, agency, franchise, employment, or fiduciary relationship. You have no authority to bind the Author or to make any statement or representation on the Author's behalf.
+
+10.8 Export Compliance
+
+The Software may be subject to export and import controls under the laws of the United States and other countries. You agree to comply strictly with all applicable export and re-export restrictions and regulations. You represent that you are not located in, under the control of, or a national or resident of any country to which export is restricted or prohibited, and that you are not on any government list of prohibited or restricted parties.
+
+10.9 U.S. Government Users
+
+The Software is "commercial computer software" and "commercial computer software documentation" as those terms are defined in 48 C.F.R. § 2.101. If acquired by or on behalf of any agency or department of the United States Government, it is subject to the rights and restrictions of this Agreement pursuant to 48 C.F.R. § 12.212 (for civilian agencies) and 48 C.F.R. § 227.7202 (for the Department of Defense).
+
+10.10 Notice
+
+Any notice to the Author must be in writing and sent by email to snibypassgui@gmail.com or racpast@gmail.com. The Author may provide notice to you by posting to the repository, by including a notice in a Software update, or by email to any address you have provided. Notice is deemed given when sent.
+
+10.11 Interpretation
+
+Headings are for convenience only. "Including" means "including without limitation." "Or" is inclusive. The singular includes the plural and vice versa. This Agreement will not be construed against the Author as drafter. Ambiguities, if any, are resolved in favor of the Author.
+
+10.12 Language
+
+This Agreement is executed in English. Any translation is for convenience only. In the event of conflict between the English text and any translation, the English text controls.
+
+10.13 Acknowledgment of Understanding
+
+BY INSTALLING, LAUNCHING, OR USING THE SOFTWARE, YOU ACKNOWLEDGE THAT: (a) you have read and understood this entire Agreement; (b) you have had the opportunity to consult legal counsel if you wished; (c) you agree to be bound by all its terms; (d) you accept all risks described in this Agreement; (e) you acknowledge all disclaimers and limitations of liability; (f) you have independently assessed the legal implications of using the Software in your jurisdiction and circumstances; (g) if you are accepting on behalf of an entity, you have authority to bind that entity.
+
+IF YOU DO NOT AGREE, DO NOT INSTALL, DO NOT USE, AND IMMEDIATELY UNINSTALL THE SOFTWARE.
+
+========================================
+
+Contact
+
+For inquiries regarding this Agreement:
+Email: snibypassgui@gmail.com or racpast@gmail.com
+
+For technical issues, consult the documentation or the repository issue tracker.
+
+========================================
+
+© 2026 Racpast. All rights reserved.

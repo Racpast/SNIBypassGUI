@@ -1,0 +1,228 @@
+# Copyright © 2026 Racpast. All Rights Reserved.
+#
+# This file is part of SNIBypassGUI, a proprietary software project.
+#
+# NOTICE: All information contained herein is, and remains the property of
+# Racpast. The intellectual and technical concepts contained herein are
+# proprietary to Racpast and are protected by copyright law and international
+# treaties. Dissemination of this information or reproduction of this material
+# is strictly forbidden unless prior written permission is obtained from Racpast.
+#
+# Unauthorized copying, modification, distribution, or use of this file,
+# via any medium, is strictly prohibited.
+#
+# For licensing inquiries: snibypassgui@gmail.com or racpast@gmail.com
+#
+# See the LICENSE file in the project root for full terms and conditions.
+
+# APKMirror
+127.0.0.1 .apkmirror.com
+
+# Archive of Our Own
+127.0.0.1 .archiveofourown.org
+
+# Arena AI
+127.0.0.1 arena.ai
+
+# ASMR Online
+127.0.0.1 .asmr.one .asmr-100.com .asmr-200.com .asmr-300.com
+
+# Bangumi 番组计划
+127.0.0.1 .bangumi.tv .bgm.tv .chii.in
+
+# Bilibili
+127.0.0.1 .bilibili.tv
+127.0.0.1 pic.bstarstatic.com s1.bstarstatic.com p1.bstarstatic.com pic1.bstarstatic.com p.bstarstatic.com
+# 127.0.0.1 upos-bstar-mirrorakam.akamaized.net upos-hz-mirrorakam.acgvideo.com.akamaized.net upos-bstar1-mirrorakam.akamaized.net upos-hz-mirrorakam.akamaized.net p-bstarstatic.akamaized.net
+
+# Bluesky
+127.0.0.1 .bsky.app
+
+# ChatGPT
+127.0.0.1 .chatgpt.com
+
+# Civitai
+127.0.0.1 .civitai.com
+
+# Claude
+127.0.0.1 .claude.ai
+
+# Cloudflare
+127.0.0.1 .workers.dev .pages.dev dns.cloudflare.com dash.cloudflare.com .cloudflare-dns.com
+
+# Deviantart
+127.0.0.1 .deviantart.com .deviantart.net
+
+# Discord
+127.0.0.1 .discord.com .discord.gg .discordapp.com .discordapp.net
+
+# DLsite
+127.0.0.1 .dlsite.com
+
+# Docker
+127.0.0.1 .docker.io .hub.docker.com production.cloudflare.docker.com .dockerstatus.com
+
+# DuckDuckGo
+127.0.0.1 .duckduckgo.com
+
+# E-Hentai
+127.0.0.1 .e-hentai.org .exhentai.org .ehgt.org
+
+# Etsy
+127.0.0.1 .etsy.com
+
+# Fandom
+127.0.0.1 .fandom.com
+
+# F-Droid
+127.0.0.1 .f-droid.org
+
+# Flickr
+127.0.0.1 .flickr.com
+
+# Gelbooru
+127.0.0.1 .gelbooru.com
+
+# Google
+127.0.0.1 .1e100.net .adgoogle.net .admob.com .advertisercommunity.com .agoogleaday.com .ampproject.net .ampproject.org .android.com .app-measurement.com .appspot.com .area120.com .asp-cc.com .autodraw.com .blog.google .doodles.google .blogblog.com .blogger.com .blogspot.com .blogspot.ru .capitalg.com .cc-dt.com .charlestonroadregistry.com .chrome.com .chromeexperiments.com .chromestatus.com .chromium.org .cloudfunctions.net .coral.ai .crashlytics.com .dartsearch.net .deepmind.com .dialogflow.com .doubleclick.com .doubleclick.ne.jp .doubleclick.net .doubleclickbygoogle.com .firebaseio.com .fitbit.com .flutter.dev .g.page .getmdl.io .ggpht.com .gmail.com .goo.gl .google-analytics.com .google.ac .google.ad .google.ae .google.ai .google.al .google.am .google.as .google.at .google.az .google.ba .google.be .google.bf .google.bg .google.bi .google.bj .google.bs .google.bt .google.by .google.ca .google.cat .google.cc .google.cd .google.cf .google.cg .google.ch .google.ci .google.cl .google.cm .google.cn .google.co.ao .google.co.bw .google.co.ck .google.co.cr .google.co.id .google.co.il .google.co.in .google.co.jp .google.co.ke .google.co.kr .google.co.ls .google.co.ma .google.co.mz .google.co.nz .google.co.th .google.co.tz .google.co.ug .google.co.uk .google.co.uz .google.co.ve .google.co.vi .google.co.za .google.co.zm .google.co.zw .google.com .google.com.af .google.com.ag .google.com.ai .google.com.ar .google.com.au .google.com.bd .google.com.bh .google.com.bn .google.com.bo .google.com.br .google.com.bz .google.com.co .google.com.cu .google.com.cy .google.com.do .google.com.ec .google.com.eg .google.com.et .google.com.fj .google.com.gh .google.com.gi .google.com.gt .google.com.hk .google.com.jm .google.com.kh .google.com.kw .google.com.lb .google.com.ly .google.com.mm .google.com.mt .google.com.mx .google.com.my .google.com.na .google.com.nf .google.com.ng .google.com.ni .google.com.np .google.com.om .google.com.pa .google.com.pe .google.com.pg .google.com.ph .google.com.pk .google.com.pr .google.com.py .google.com.qa .google.com.sa .google.com.sb .google.com.sg .google.com.sl .google.com.sv .google.com.tj .google.com.tn .google.com.tr .google.com.tw .google.com.ua .google.com.uy .google.com.vc .google.com.ve .google.com.vn .google.cv .google.cz .google.de .google.dev .google.dj .google.dk .google.dm .google.dz .google.ee .google.es .google.eu .google.fi .google.fm .google.fr .google.ga .google.ge .google.gf .google.gg .google.gl .google.gm .google.gp .google.gr .google.gy .google.hn .google.hr .google.ht .google.hu .google.ie .google.im .google.in .google.io .google.iq .google.is .google.it .google.it.ao .google.je .google.jo .google.jp .google.kg .google.ki .google.kz .google.la .google.li .google.lk .google.lt .google.lu .google.lv .google.ma .google.md .google.me .google.mg .google.mk .google.ml .google.mn .google.ms .google.mu .google.mv .google.mw .google.ne .google.net .google.nl .google.no .google.nr .google.nu .google.org .google.pk .google.pl .google.pn .google.ps .google.pt .google.ro .google.rs .google.ru .google.rw .google.sc .google.se .google.sh .google.si .google.sk .google.sm .google.sn .google.so .google.sr .google.st .google.td .google.tg .google.tk .google.tl .google.tm .google.tn .google.to .google.tt .google.tw .google.ua .google.us .google.vg .google.vu .google.ws .googleads.com .googleadservices.com .googleadsserving.cn .googleanalytics.com .googleapis.com .googleapps.com .googleblog.com .googlecode.com .googlecommerce.com .googledomains.com .googlee.com .googlegroups.com .googlehosted.com .googlemail.com .googlemaps.com .googleoptimize.com .googlepages.com .googleplex.com .googlesciencefair.com .googlesource.com .googlesyndication.com .googletagmanager.com .googletagservices.com .googleusercontent.com .googlezip.net .gstatic.com .invitemedia.com .jibemobile.com .keyhole.com .kormo.com .material.io .nest.com .oingo.com .opensource.google .owox.com .page.link .pittpatt.com .pki.goog .recaptcha.net .anycast.goog .registry.google .safety.google .skills.google .stadia.com .tenor.co .tenor.com .thinkwithgoogle.com .tiltbrush.com .urchin.com .waze.com .withgoogle.com .x.company .youtube-nocookie.com .youtube.be .youtube.co.uk .youtube.com .youtube.de .youtube.es .youtube.fr .youtube.nl .youtube.pl .youtubeeducation.com .youtubegaming.com .youtubekids.com .yt.be .ytimg.com .zdns.google .2mdn-cn.net .about.google .acceleratewithgoogle.com .admeld.com .admob-cn.com .admob.biz .admob.co.kr .admob.co.nz .admob.co.uk .admob.de .admob.dk .admob.es .admob.fi .admob.fr .admob.gr .admob.it .admob.jp .admob.kr .admob.mobi .admob.no .admob.pt .admob.sg .admob.tw .admob.vn .admobapplicationnetwork.com .ads.cc .adscapemediainventory.net .adscapemediainventorytest.net .adsense.com .adsensecustomsearchads.com .adsenseformobileapps.com .adsgoogle.com .advertiseondish.com .advertiserscommunity.com .adwords-community.com .adwords-select.com .adwords.com .adwordsexample.com .adwordsexpress.com .adwordsgoogle.com .adwordsperformanceforum.com .agnss.goog .ai.google .antigravity.google .app-measurement-cn.com .appliedsemantics.com .appsenterprisecustomers.com .asrnokeoxr.com .aswpsdkeu.com .businessmessages.google .chromebook.com .chromecast.com .chromeenterprise.google .chronicle.security .cloud.run .cloudburstresearch.com .cobrasearch.com .cookiechoices.org .crossmediapanel.com .dartsearch-cn.net .deepmind.google .design.google .diversity.google .dns.google .domains.google .doodle4google.com .doubleclick-cn.net .doubleclick.de .doubleclicksearch.com .engageforagencies.com .enterprisedemo-google.com .enterprisemarketingportal.google .face-indexing.com .face-mining.com .faceindexing.com .facemining.com .facesort.com .famebit.com .families.google .feedburner.com .firehunt.com .foofle.com .freebase.com .froogle.com .g.cn .g.co .ggoogle.com .gmail.co .gmail.de .gmail.dk .gmail.fr .gmail.ie .gmailbuch.de .gmailer.de .gmails.de .gmodules.com .gogle.com .gogole.com .googel.com .googil.com .googl.com .google-analytics-cn.com .google.ng .googleadservices-cn.com .googleadwords.com .googleartproject.com .googlebot.com .googlecdn.org .googlecloudpresscorner.com .googledrive.com .googleearth.com .googleedgeops.com .googlefiber.net .googlemerchandisestore.com .googlenestcommunity.com .googleoptimize-cn.com .googlepagecreator.com .googlesandbox-cn.com .googlescholar.com .googlesyndication-cn.com .googletagmanager-cn.com .googletagservices-cn.com .googletraveladservices-cn.com .googletraveladservices.com .googlevads-cn.com .googleweblight.com .googlr.com .goolge.com .gooogle.com .gp3gie1qbl.com .grow.google .healthapp.google .igoogle.com .incentelligence.com .incentivetargeting.com .incentivetargeting.net .inviteaudience.com .inviteinsight.com .invitemediainc.com .invitmedia.com .io.google .kaggle.com .labs.google .limelightaffiliates.com .localguidesconnect.com .localhost.com .looker.com .loon.com .madewithcode.com .mpk01.com .near.by .notebooklm.google .ordering.page .pageadgooglesyndication.com .pagespeedmobilizer.com .panoramio.com .picasa.com .postrank.com .privacychoices.org .privacysandbox.com .promotargeting.com .promotargeting.net .quantumai.google .search.google .research.google .sandbox-freebase.com .sandbox-freebaseapps.com .screenwisemedia.com .screenwiseselect.com .screenwisetrends.com .screenwisetrendspanel.com .share.google .skintone.google .slides.new .sre.google .statadvertising.com .stories.google .syndicatedsearch.goog .translate.goog .tv.google .urbanengines.com .urchin.fr .waymo.com .web.dev .whatbrowser.org .withyoutube.com .youtu.be .golang.org .go.dev .gcr.io .pkg.dev .adtrafficquality.google .googlevideo.com
+
+# Gravatar
+127.0.0.1 .gravatar.com
+
+# Greasy Fork
+127.0.0.1 .greasyfork.org
+
+# Grok
+127.0.0.1 .grok.com .grokipedia.com .x.ai
+
+# Gumroad
+127.0.0.1 .gumroad.com
+
+# Hanime1.me
+127.0.0.1 .hanime1.me
+
+# Imgur
+127.0.0.1 .imgur.com
+
+# itch.io
+127.0.0.1 .itch.io
+
+# Iwara
+127.0.0.1 .iwara.tv .iwara.ai
+
+# konachan.com
+127.0.0.1 .konachan.com
+
+# LINUX DO
+127.0.0.1 .linux.do
+
+# MakerWorld
+127.0.0.1 .makerworld.com
+
+# Medium
+127.0.0.1 .medium.com
+
+# Microsoft Copilot
+127.0.0.1 copilot.microsoft.com
+
+# Microsoft OneDrive
+127.0.0.1 .onedrive.live.com
+
+# nicozon
+127.0.0.1 .nicozon.net
+
+# NodeSeek
+127.0.0.1 .nodeseek.com
+
+# Nyaa
+127.0.0.1 .nyaa.si
+
+# OnlyFans
+127.0.0.1 .onlyfans.com
+
+# Pinterest
+127.0.0.1 .pinterest.com .pinimg.com
+
+# Pixiv
+127.0.0.1 .pixiv.net .pximg.net .pixiv.org
+
+# pixivFANBOX
+127.0.0.1 api.fanbox.cc
+
+# Poe
+127.0.0.1 .poe.com
+
+# Pornhub
+127.0.0.1 .pornhub.com mux-cf.phncdn.com hv-h.phncdn.com hm-h.phncdn.com hv2-h.phncdn.com hm-c.phncdn.com hm2-h.phncdn.com clips-cf.phncdn.com
+
+# Prismic
+127.0.0.1 images.prismic.io
+
+# Quora
+127.0.0.1 .quora.com
+
+# Reddit
+127.0.0.1 .reddit.com .redditstatic.com .redd.it .redditmedia.com
+
+# RFI
+127.0.0.1 .rfi.fr
+
+# Rumble
+127.0.0.1 .rumble.com
+
+# RUTUBE
+127.0.0.1 .rutube.ru
+
+# Sankaku Complex
+127.0.0.1 .sankakucomplex.com
+
+# SecurityTrails
+127.0.0.1 .securitytrails.com
+
+# Substack
+127.0.0.1 .substack.com
+
+# Telegram
+127.0.0.1 .telegram.org .t.me .telegram.dog .telegram.me .tg.dev .cdn-telegram.org .telesco.pe
+
+# TheTVDB
+127.0.0.1 .thetvdb.com
+
+# Truth Social
+127.0.0.1 .truthsocial.com
+
+# Urban Dictionary
+127.0.0.1 .urbandictionary.com
+
+# V2EX
+127.0.0.1 .v2ex.com
+
+# Vercel
+# 127.0.0.1 .vercel.app
+
+# wallhaven.cc
+127.0.0.1 .wallhaven.cc
+
+# X (Twitter)
+127.0.0.1 .x.com .twimg.com .twitter.com .t.co
+
+# XNXX.COM
+127.0.0.1 .xnxx.com
+
+# XVIDEOS.COM
+127.0.0.1 .xvideos.com
+
+# 巴哈姆特
+127.0.0.1 .gamer.com.tw
+
+# 紳士漫畫
+127.0.0.1 .wnacg.com .wnacg.ru .qy0.ru .wcdn.date
+
+# Hysteria 2
+127.0.0.1 v2.hysteria.network
+
+# INTERNAL
+127.0.0.1 .snib snib.test
+
+# NXDOMAIN
+NX .adtng.com .juicyads.com .juicyads.me
