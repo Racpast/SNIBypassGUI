@@ -41,8 +41,8 @@ public:
     std::wstring Hex();
 
 private:
-    void*    alg_ = nullptr;
-    void*    hash_ = nullptr;
+    void* alg_ = nullptr;
+    void* hash_ = nullptr;
     std::vector<uint8_t> object_;
     uint32_t length_ = 32;
 };

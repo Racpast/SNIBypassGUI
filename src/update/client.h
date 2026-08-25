@@ -23,7 +23,7 @@
 
 // Update endpoints. Chunk URLs in the manifest are relative to the manifest's own
 // directory, so the whole tree can be rehosted under any prefix without editing it.
-#define UPDATE_MANIFEST_URL     L"https://update.rpnet.cc/snibypassgui/manifest.json"
+#define UPDATE_MANIFEST_URL L"https://update.rpnet.cc/snibypassgui/manifest.json"
 #define UPDATE_MANIFEST_SIG_URL UPDATE_MANIFEST_URL L".sig"
 
 // Every updatable file — the executable and every data asset — is delivered as a
@@ -34,27 +34,27 @@
 namespace Update {
 
 struct Chunk {
-    std::wstring name;    // path relative to the manifest's directory
-    uint64_t     size = 0;
+    std::wstring name;  // path relative to the manifest's directory
+    uint64_t size = 0;
     std::wstring sha256;  // lowercase hex
 };
 
 struct File {
-    std::wstring       path;  // install path relative to the program directory
-    bool               isExe = false;
-    uint64_t           size = 0;
-    std::wstring       sha256;  // lowercase hex of the whole file
+    std::wstring path;  // install path relative to the program directory
+    bool isExe = false;
+    uint64_t size = 0;
+    std::wstring sha256;  // lowercase hex of the whole file
     std::vector<Chunk> chunks;
 };
 
 struct Info {
-    bool              ok = false;
-    std::wstring      error;  // populated when ok == false
-    std::wstring      version;
-    std::wstring      released;
-    std::wstring      notes;  // release notes for the current language
-    uint64_t          chunkSize = 0;
-    bool              reinstallRequired = false;  // we predate min_upgradable_from
+    bool ok = false;
+    std::wstring error;  // populated when ok == false
+    std::wstring version;
+    std::wstring released;
+    std::wstring notes;  // release notes for the current language
+    uint64_t chunkSize = 0;
+    bool reinstallRequired = false;  // we predate min_upgradable_from
     std::vector<File> files;
 };
 

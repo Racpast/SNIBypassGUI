@@ -20,6 +20,8 @@
 #include <shellapi.h>
 
 #include <atomic>
+#include <cwchar>
+#include <iterator>
 #include <string>
 #include <thread>
 #include <vector>
@@ -31,6 +33,7 @@
 #include "app/settings.h"
 #include "app/text.h"
 #include "app/version.h"
+#include "platform/autostart.h"
 #include "platform/process.h"
 #include "platform/shell.h"
 #include "platform/shortcut.h"
@@ -88,10 +91,9 @@ constexpr wchar_t kUrlSponsor[] = L"https://ifdian.net/a/racpast";
 constexpr wchar_t kEmail[] = L"snibypassgui@gmail.com";
 constexpr wchar_t kHostsFile[] = L"C:\\Windows\\System32\\drivers\\etc\\hosts";
 
-HWND                      g_window = nullptr;
-HICON                     g_icon = nullptr;
-NOTIFYICONDATAW           g_notifyIcon = {};
-UINT                      g_taskbarCreated = 0;
+HWND g_window = nullptr;
+HICON g_icon = nullptr;
+UINT g_taskbarCreated = 0;
 std::vector<std::wstring> g_supportedSiteLinks;
 
 // Set for the whole lifetime of an update check (fetch, confirm, download, apply).
@@ -117,12 +119,32 @@ std::wstring BuildTrayTooltip() {
     return std::wstring(APP_NAME) + L" " + GetVersionDisplayStr();
 }
 
+void CopyBounded(wchar_t* dst, size_t capacity, const std::wstring& text) {
+    const size_t n = (text.size() < capacity - 1) ? text.size() : capacity - 1;
+    std::wmemcpy(dst, text.c_str(), n);
+    dst[n] = L'\0';
+}
+
+// Just enough of the structure to name our icon.
+//
+// Every notify-icon call builds its own copy rather than sharing one: tooltips and
+// balloons are updated from the worker threads behind Start, Stop, cache cleanup
+// and the update check, while the UI thread re-adds the icon when Explorer
+// restarts. One shared NOTIFYICONDATAW would have those threads writing the same
+// flags and buffers at the same time.
+NOTIFYICONDATAW IconIdentity() {
+    NOTIFYICONDATAW data = {};
+    data.cbSize = sizeof(data);
+    data.hWnd = g_window;
+    data.uID = kTrayIconId;
+    return data;
+}
+
 void SetTip(const std::wstring& tip) {
-    g_notifyIcon.uFlags = NIF_TIP;
-    std::wcsncpy(g_notifyIcon.szTip, tip.c_str(), std::size(g_notifyIcon.szTip) - 1);
-    g_notifyIcon.szTip[std::size(g_notifyIcon.szTip) - 1] = L'\0';
-    Shell_NotifyIconW(NIM_MODIFY, &g_notifyIcon);
-    g_notifyIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    NOTIFYICONDATAW data = IconIdentity();
+    data.uFlags = NIF_TIP;
+    CopyBounded(data.szTip, std::size(data.szTip), tip);
+    Shell_NotifyIconW(NIM_MODIFY, &data);
 }
 
 void ResetTip() {
@@ -130,27 +152,21 @@ void ResetTip() {
 }
 
 void ShowBalloon(const std::wstring& title, const std::wstring& text) {
-    g_notifyIcon.uFlags = NIF_INFO;
-    std::wcsncpy(g_notifyIcon.szInfoTitle, title.c_str(),
-                 std::size(g_notifyIcon.szInfoTitle) - 1);
-    std::wcsncpy(g_notifyIcon.szInfo, text.c_str(), std::size(g_notifyIcon.szInfo) - 1);
-    g_notifyIcon.dwInfoFlags = NIIF_INFO;
-    Shell_NotifyIconW(NIM_MODIFY, &g_notifyIcon);
-    g_notifyIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    NOTIFYICONDATAW data = IconIdentity();
+    data.uFlags = NIF_INFO;
+    CopyBounded(data.szInfoTitle, std::size(data.szInfoTitle), title);
+    CopyBounded(data.szInfo, std::size(data.szInfo), text);
+    data.dwInfoFlags = NIIF_INFO;
+    Shell_NotifyIconW(NIM_MODIFY, &data);
 }
 
 void AddIcon() {
-    g_notifyIcon = {};
-    g_notifyIcon.cbSize = sizeof(g_notifyIcon);
-    g_notifyIcon.hWnd = g_window;
-    g_notifyIcon.uID = kTrayIconId;
-    g_notifyIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    g_notifyIcon.uCallbackMessage = kTrayMessage;
-    g_notifyIcon.hIcon = g_icon;
-    std::wstring tip = BuildTrayTooltip();
-    std::wcsncpy(g_notifyIcon.szTip, tip.c_str(),
-                 std::size(g_notifyIcon.szTip) - 1);
-    Shell_NotifyIconW(NIM_ADD, &g_notifyIcon);
+    NOTIFYICONDATAW data = IconIdentity();
+    data.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    data.uCallbackMessage = kTrayMessage;
+    data.hIcon = g_icon;
+    CopyBounded(data.szTip, std::size(data.szTip), BuildTrayTooltip());
+    Shell_NotifyIconW(NIM_ADD, &data);
 }
 
 std::wstring StatusLabel(const wchar_t* nameKey, bool running) {
@@ -184,7 +200,7 @@ HMENU BuildAboutMenu() {
 }
 
 void ShowContextMenu() {
-    const bool dns = Services::DnsInterceptorRunning();
+    const bool dns = Services::DnsRedirectRunning();
     const bool nginx = Services::NginxRunning();
     const bool sniGate = Services::SniGateRunning();
     // An update or cleanup in flight owns the service state, so disable the items that would
@@ -210,7 +226,7 @@ void ShowContextMenu() {
     else
         AppendMenuW(menu, startStopFlags, kIdStart, T(L"menu.start"));
 
-    const bool autostart = Services::IsAutostartEnabled();
+    const bool autostart = Autostart::IsEnabled();
     AppendMenuW(menu, MF_STRING, kIdToggleAutostart,
                 autostart ? T(L"menu.disableAuto") : T(L"menu.enableAuto"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
@@ -242,7 +258,7 @@ void ShowContextMenu() {
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(langMenu), T(L"menu.language"));
 
     HMENU miscMenu = CreatePopupMenu();
-    AppendMenuW(miscMenu, MF_STRING | (LoggingEnabled() ? MF_CHECKED : 0), kIdToggleLog,
+    AppendMenuW(miscMenu, MF_STRING | (LogEnabled() ? MF_CHECKED : 0), kIdToggleLog,
                 T(L"menu.logging"));
     AppendMenuW(miscMenu, MF_STRING, kIdEditHosts, T(L"menu.editHosts"));
     // Show "Cleaning..." when cleanup is in progress.
@@ -250,7 +266,11 @@ void ShowContextMenu() {
         AppendMenuW(miscMenu, MF_STRING | MF_GRAYED, kIdCleanCache, T(L"msg.cleaningCache"));
     else
         AppendMenuW(miscMenu, MF_STRING, kIdCleanCache, T(L"menu.cleanCache"));
-    AppendMenuW(miscMenu, MF_STRING, kIdUninstall, T(L"menu.uninstall"));
+    // Grayed while an update or a cleanup is in flight, for the same reason Start and
+    // Stop are: an uninstall would delete the tree out from under it. Showing it
+    // enabled and then doing nothing on click would look like a broken menu item.
+    AppendMenuW(miscMenu, MF_STRING | (busy ? MF_GRAYED : 0), kIdUninstall,
+                T(L"menu.uninstall"));
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(miscMenu), T(L"menu.misc"));
 
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildAboutMenu()), T(L"menu.about"));
@@ -268,7 +288,8 @@ void ShowContextMenu() {
 // ---- Command handlers (heavy work runs off the UI thread) -------------------
 
 void DoStart() {
-    if (g_updateBusy.load() || g_cleanupBusy.load()) return;  // an update or cleanup owns the service state
+    if (g_updateBusy.load() || g_cleanupBusy.load())
+        return;  // an update or cleanup owns the service state
     std::thread([] {
         if (Services::Start(true)) ShowBalloon(APP_NAME, T(L"msg.started"));
     }).detach();
@@ -284,10 +305,12 @@ void DoStop() {
 
 void DoToggleAutostart() {
     std::thread([] {
-        if (Services::IsAutostartEnabled()) {
-            Services::DisableAutostart();
-            ShowBalloon(APP_NAME, T(L"msg.autoOff"));
-        } else if (Services::EnableAutostart()) {
+        if (Autostart::IsEnabled()) {
+            if (Autostart::Disable())
+                ShowBalloon(APP_NAME, T(L"msg.autoOff"));
+            else
+                MessageBoxW(nullptr, T(L"msg.autoFail"), APP_NAME, MB_ICONERROR);
+        } else if (Autostart::Enable()) {
             ShowBalloon(APP_NAME, T(L"msg.autoOn"));
         } else {
             MessageBoxW(nullptr, T(L"msg.autoFail"), APP_NAME, MB_ICONERROR);
@@ -317,10 +340,11 @@ void PromptAndApply(const Update::Info& info, const std::wstring& summary) {
     const bool isDowngrade = (cmp < 0);
 
     // Pick the right message based on what's changing.
-    const wchar_t* titleKey = exeChanges ? (isDowngrade ? L"msg.updDowngrade" : L"msg.updAvail")
-                                         : L"msg.updDataOnly";
-    const wchar_t* confirmKey = exeChanges ? (isDowngrade ? L"msg.updConfirmDowngrade" : L"msg.updConfirm")
-                                           : L"msg.updConfirmData";
+    const wchar_t* titleKey =
+        exeChanges ? (isDowngrade ? L"msg.updDowngrade" : L"msg.updAvail") : L"msg.updDataOnly";
+    const wchar_t* confirmKey =
+        exeChanges ? (isDowngrade ? L"msg.updConfirmDowngrade" : L"msg.updConfirm")
+                   : L"msg.updConfirmData";
 
     std::wstring message =
         std::wstring(T(titleKey)) + L" (" + info.version + L"):\n\n" + summary;
@@ -391,12 +415,26 @@ void DoCheckUpdate() {
 }
 
 void DoUninstall() {
-    if (MessageBoxW(nullptr, T(L"msg.uninstallConfirm"), APP_NAME,
-                    MB_ICONWARNING | MB_YESNO) != IDYES)
+    // The confirmation stays on the UI thread — it is a modal question and nothing
+    // else may happen until it is answered. An uninstall that lands while an update
+    // is applying, or a cleanup is mid-restart, would delete the tree out from under
+    // it, so the same flags that gate Start and Stop gate this too.
+    if (g_updateBusy.load() || g_cleanupBusy.load()) return;
+    if (MessageBoxW(nullptr, T(L"msg.uninstallConfirm"), APP_NAME, MB_ICONWARNING | MB_YESNO) !=
+        IDYES)
         return;
-    Services::Uninstall();
-    Destroy();
-    PostQuitMessage(0);
+
+    // The work itself runs off the UI thread. It stops the stack, which waits on the
+    // same lock every tray command uses, and a Start already under way holds that
+    // lock for as long as a child takes to bind its port — up to ten seconds of a
+    // frozen tray if this ran here.
+    std::thread([] {
+        Services::Uninstall();
+        // WM_CLOSE, not PostQuitMessage: the quit message has to be posted by the
+        // thread that owns the message loop, and this is not it. The window's own
+        // handler takes it from here, and wWinMain tears the tray icon down.
+        PostMessageW(g_window, WM_CLOSE, 0, 0);
+    }).detach();
 }
 
 void DoCleanCache() {
@@ -407,10 +445,14 @@ void DoCleanCache() {
     std::thread([] {
         CleanupBusyGuard guard;
         SetTip(std::wstring(APP_NAME) + L": " + T(L"msg.cleaningCache"));
-        const size_t deleted = Services::CleanCache();
+        const Services::CacheCleanResult result = Services::CleanCache();
         ResetTip();
+        if (!result.ok) {
+            MessageBoxW(nullptr, T(L"msg.restartFailed"), APP_NAME, MB_ICONERROR);
+            return;
+        }
         std::wstring message = T(L"msg.cacheClean");
-        message += L"\n" + std::to_wstring(deleted) + L" " + T(L"msg.itemsDeleted");
+        message += L"\n" + std::to_wstring(result.deleted) + L" " + T(L"msg.itemsDeleted");
         ShowBalloon(APP_NAME, message);
     }).detach();
 }
@@ -424,38 +466,37 @@ void HandleCommand(int id) {
     }
 
     switch (id) {
-        case kIdStart:            DoStart(); break;
-        case kIdStop:             DoStop(); break;
-        case kIdToggleAutostart:  DoToggleAutostart(); break;
-        case kIdCheckUpdate:      DoCheckUpdate(); break;
+        case kIdStart: DoStart(); break;
+        case kIdStop: DoStop(); break;
+        case kIdToggleAutostart: DoToggleAutostart(); break;
+        case kIdCheckUpdate: DoCheckUpdate(); break;
         case kIdToggleAutoUpdate: SetAutoUpdateEnabled(!AutoUpdateEnabled()); break;
-        case kIdToggleLog:        SetLoggingEnabled(!LoggingEnabled()); break;
-        case kIdCleanCache:       DoCleanCache(); break;
-        case kIdLangEnglish:      DoSetLang(Lang::English); break;
-        case kIdLangChinese:      DoSetLang(Lang::Chinese); break;
-        case kIdAboutApp:         Shell::OpenUrl(kUrlApp); break;
-        case kIdAboutCopyright:   Shell::OpenUrl(kUrlCopyright); break;
-        case kIdAboutQq1:         Shell::OpenUrl(kUrlQq1); break;
-        case kIdAboutQq2:         Shell::OpenUrl(kUrlQq2); break;
-        case kIdAboutTelegram:    Shell::OpenUrl(kUrlTelegram); break;
-        case kIdAboutStar:        Shell::OpenUrl(APP_HOMEPAGE); break;
-        case kIdAboutSponsor:     Shell::OpenUrl(kUrlSponsor); break;
-        case kIdViewEula:         Eula::ShowForReading(GetModuleHandleW(nullptr)); break;
-        case kIdUninstall:        DoUninstall(); break;
+        case kIdToggleLog: LogSetEnabled(!LogEnabled()); break;
+        case kIdCleanCache: DoCleanCache(); break;
+        case kIdLangEnglish: DoSetLang(Lang::English); break;
+        case kIdLangChinese: DoSetLang(Lang::Chinese); break;
+        case kIdAboutApp: Shell::OpenUrl(kUrlApp); break;
+        case kIdAboutCopyright: Shell::OpenUrl(kUrlCopyright); break;
+        case kIdAboutQq1: Shell::OpenUrl(kUrlQq1); break;
+        case kIdAboutQq2: Shell::OpenUrl(kUrlQq2); break;
+        case kIdAboutTelegram: Shell::OpenUrl(kUrlTelegram); break;
+        case kIdAboutStar: Shell::OpenUrl(APP_HOMEPAGE); break;
+        case kIdAboutSponsor: Shell::OpenUrl(kUrlSponsor); break;
+        case kIdViewEula: Eula::ShowForReading(GetModuleHandleW(nullptr)); break;
+        case kIdUninstall: DoUninstall(); break;
         case kIdAboutEmail:
             Shell::CopyToClipboard(kEmail);
             ShowBalloon(APP_NAME, T(L"msg.copied"));
             break;
         case kIdEditHosts:
-            // We already run elevated, so notepad inherits that.
-            Process::Launch(L"C:\\Windows\\System32\\notepad.exe",
-                            std::wstring(L"\"") + kHostsFile + L"\"", L"", false);
+            // We already run elevated, so notepad inherits that. It is launched
+            // detached on purpose: an editor the user is typing in must not be
+            // taken down when the tray exits.
+            Process::LaunchDetached(L"C:\\Windows\\System32\\notepad.exe",
+                                    std::wstring(L"\"") + kHostsFile + L"\"", L"", false);
             break;
-        case kIdExit:
-            PostMessageW(g_window, WM_CLOSE, 0, 0);
-            break;
-        default:
-            break;
+        case kIdExit: PostMessageW(g_window, WM_CLOSE, 0, 0); break;
+        default: break;
     }
 }
 
@@ -473,20 +514,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 ShowContextMenu();
             return 0;
 
-        case WM_COMMAND:
-            HandleCommand(LOWORD(wp));
-            return 0;
+        case WM_COMMAND: HandleCommand(LOWORD(wp)); return 0;
 
-        case WM_CLOSE:
-            DestroyWindow(hwnd);
-            return 0;
+        case WM_CLOSE: DestroyWindow(hwnd); return 0;
 
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            return 0;
+        case WM_DESTROY: PostQuitMessage(0); return 0;
 
-        default:
-            return DefWindowProcW(hwnd, msg, wp, lp);
+        default: return DefWindowProcW(hwnd, msg, wp, lp);
     }
 }
 
@@ -519,7 +553,8 @@ bool Create(HINSTANCE instance) {
 }
 
 void Destroy() {
-    Shell_NotifyIconW(NIM_DELETE, &g_notifyIcon);
+    NOTIFYICONDATAW data = IconIdentity();
+    Shell_NotifyIconW(NIM_DELETE, &data);
 }
 
 int RunMessageLoop() {

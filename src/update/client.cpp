@@ -31,6 +31,7 @@
 #include "app/services.h"
 #include "app/text.h"
 #include "app/version.h"
+#include "platform/command.h"
 #include "platform/process.h"
 #include "update/crypto.h"
 #include "update/http.h"
@@ -166,12 +167,12 @@ bool DownloadFile(const File& f, const std::wstring& base, const std::wstring& d
 }
 
 struct Staged {
-    const File*  file = nullptr;
+    const File* file = nullptr;
     std::wstring target;  // final install path
     std::wstring tmp;     // <target>.new
     std::wstring bak;     // <target>.bak (assets only)
-    bool         movedBak = false;
-    bool         applied = false;
+    bool movedBak = false;
+    bool applied = false;
 };
 
 // Outcome of one download pass over a manifest.
@@ -230,18 +231,24 @@ DownloadResult DownloadPhase(const Info& info, std::vector<Staged>& staged,
     return DownloadResult::Ok;
 }
 
-// Write the wait-and-relaunch helper that replaces the running executable after we
-// exit. Crash-safe: the current executable is preserved as .bak first, and if the
-// swap fails the backup is restored so the install is never left without a working
-// executable.
-bool WriteSelfUpdateScript(const std::wstring& scriptPath, const std::wstring& self,
-                          const std::wstring& newExe, const std::wstring& bak) {
+// The commands of the wait-and-relaunch helper that replaces the running executable
+// after we exit. Crash-safe: the current executable is preserved as .bak first, and
+// if the swap fails the backup is restored, so the install is never left without a
+// working executable.
+//
+// `args` is what this process was started with, and it is handed back to the copy
+// that replaces us because the relaunch continues this session rather than beginning
+// a new one. A logon start carries -autostart, which is what tells the program to
+// bring the service stack up and to leave the desktop shortcut alone; dropping it
+// would bring the tray back with nothing running and a shortcut prompt in front of
+// someone who only agreed to an update.
+std::wstring BuildSelfUpdateScript(const std::wstring& self, const std::wstring& newExe,
+                                   const std::wstring& bak, const std::wstring& args) {
     std::wstring s;
-    s += L"@echo off\r\n";
-    s += L"chcp 65001 >nul\r\n";
     s += L"set \"SELF=" + self + L"\"\r\n";
     s += L"set \"NEW=" + newExe + L"\"\r\n";
     s += L"set \"BAK=" + bak + L"\"\r\n";
+    s += L"set \"ARGS=" + args + L"\"\r\n";
     s += L"del \"%BAK%\" >nul 2>&1\r\n";
     s += L"set /a TRIES=0\r\n";
     s += L":wait\r\n";
@@ -253,7 +260,7 @@ bool WriteSelfUpdateScript(const std::wstring& scriptPath, const std::wstring& s
     s += L"if %TRIES% LSS 60 goto wait\r\n";
     // Never took the lock: leave the install exactly as it was.
     s += L"del \"%NEW%\" >nul 2>&1\r\n";
-    s += L"start \"\" \"%SELF%\"\r\n";
+    s += L"start \"\" \"%SELF%\" %ARGS%\r\n";
     s += L"goto done\r\n";
     s += L":swap\r\n";
     s += L"move /Y \"%NEW%\" \"%SELF%\" >nul 2>&1\r\n";
@@ -262,15 +269,10 @@ bool WriteSelfUpdateScript(const std::wstring& scriptPath, const std::wstring& s
     s += L") else (\r\n";
     s += L"  move /Y \"%BAK%\" \"%SELF%\" >nul 2>&1\r\n";
     s += L")\r\n";
-    s += L"start \"\" \"%SELF%\"\r\n";
+    s += L"start \"\" \"%SELF%\" %ARGS%\r\n";
     s += L":done\r\n";
     s += L"(goto) 2>nul & del \"%~f0\"\r\n";
-
-    std::ofstream out(scriptPath.c_str(), std::ios::binary | std::ios::trunc);
-    if (!out) return false;
-    const std::string utf8 = WideToUtf8(s);
-    out.write(utf8.data(), static_cast<std::streamsize>(utf8.size()));
-    return static_cast<bool>(out);
+    return s;
 }
 
 void ReportFailure(const std::wstring& message) {
@@ -631,22 +633,12 @@ bool PerformUpdate(const Info& info, const Progress& progress) {
     }
 
     // ---- Phase 3: swap the running executable via a wait-and-relaunch helper. ----
-    const std::wstring script = DataDir() + L"temp\\selfupdate.bat";
-    const size_t slash = script.find_last_of(L"\\/");
-    if (slash != std::wstring::npos) {
-        FileSystem::EnsureDirectory(script.substr(0, slash));
-    }
-    if (!WriteSelfUpdateScript(script, exeEntry->target, exeEntry->tmp, exeEntry->bak)) {
-        LOGE(L"Update: cannot write the self-update helper.");
-        DeleteFileW(exeEntry->tmp.c_str());
-        ReportFailure(T(L"msg.updApplyFail"));
-        return false;
-    }
-
     LOGI(L"Update: launching the self-update helper and exiting.");
-    if (Process::Launch(L"C:\\Windows\\System32\\cmd.exe", L"/c \"" + script + L"\"",
-                        DataDir() + L"temp", true) == 0) {
-        LOGE(L"Update: failed to launch the self-update helper.");
+    if (!Command::RunDetachedScript(
+            L"selfupdate.bat",
+            BuildSelfUpdateScript(exeEntry->target, exeEntry->tmp, exeEntry->bak,
+                                  Process::OwnCommandLineArgs()))) {
+        LOGE(L"Update: cannot start the self-update helper.");
         DeleteFileW(exeEntry->tmp.c_str());
         ReportFailure(T(L"msg.updApplyFail"));
         return false;

@@ -17,6 +17,8 @@
 
 #include "ui/eula.h"
 
+#include <cwchar>
+#include <utility>
 #include <vector>
 
 #include "app/i18n.h"
@@ -80,16 +82,16 @@ std::vector<BYTE> BuildTemplate(bool gated) {
     TemplateBuilder t;
     t.U32(WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU | DS_MODALFRAME | DS_CENTER |
           DS_SETFONT);
-    t.U32(0);                        // extended style
-    t.U16(gated ? 4 : 3);            // control count
-    t.U16(0);                        // x, ignored under DS_CENTER
-    t.U16(0);                        // y, ignored under DS_CENTER
-    t.U16(300);                      // width in dialog units
-    t.U16(220);                      // height in dialog units
-    t.Empty();                       // no menu
-    t.Empty();                       // default window class
-    t.Str(T(L"eula.title"));         // caption
-    t.U16(9);                        // DS_SETFONT point size
+    t.U32(0);                 // extended style
+    t.U16(gated ? 4 : 3);     // control count
+    t.U16(0);                 // x, ignored under DS_CENTER
+    t.U16(0);                 // y, ignored under DS_CENTER
+    t.U16(300);               // width in dialog units
+    t.U16(220);               // height in dialog units
+    t.Empty();                // no menu
+    t.Empty();                // default window class
+    t.Str(T(L"eula.title"));  // caption
+    t.U16(9);                 // DS_SETFONT point size
     t.Str(L"Segoe UI");
 
     t.AddItem(WS_CHILD | WS_VISIBLE | SS_LEFT, 7, 7, 286, 18, kIdIntro, kAtomStatic,
@@ -102,11 +104,11 @@ std::vector<BYTE> BuildTemplate(bool gated) {
     if (gated) {
         t.AddItem(WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 181, 199, 55, 15,
                   IDCANCEL, kAtomButton, T(L"eula.disagree"));
-        t.AddItem(WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 240, 199, 55, 15,
-                  IDOK, kAtomButton, T(L"eula.agree"));
+        t.AddItem(WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 240, 199, 55, 15, IDOK,
+                  kAtomButton, T(L"eula.agree"));
     } else {
-        t.AddItem(WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 123, 199, 55, 15,
-                  IDOK, kAtomButton, T(L"eula.close"));
+        t.AddItem(WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 123, 199, 55, 15, IDOK,
+                  kAtomButton, T(L"eula.close"));
     }
     return std::move(t.buf);
 }
@@ -123,11 +125,8 @@ INT_PTR CALLBACK DialogProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_COMMAND:
             switch (LOWORD(wp)) {
                 case IDOK:
-                case IDCANCEL:
-                    EndDialog(dlg, LOWORD(wp));
-                    return TRUE;
-                default:
-                    break;
+                case IDCANCEL: EndDialog(dlg, LOWORD(wp)); return TRUE;
+                default: break;
             }
             break;
 
@@ -136,8 +135,7 @@ INT_PTR CALLBACK DialogProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
             EndDialog(dlg, IDCANCEL);
             return TRUE;
 
-        default:
-            break;
+        default: break;
     }
     return FALSE;
 }
@@ -146,9 +144,8 @@ INT_PTR CALLBACK DialogProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
 // the first launch never depends on files on disk. Falls back to English. Returns
 // text with CRLF line breaks, as EDIT controls require.
 std::wstring LoadText() {
-    std::string utf8 = EmbeddedText::Read(GetLang() == Lang::Chinese
-                                              ? EmbeddedText::kEulaChinese
-                                              : EmbeddedText::kEulaEnglish);
+    std::string utf8 = EmbeddedText::Read(
+        GetLang() == Lang::Chinese ? EmbeddedText::kEulaChinese : EmbeddedText::kEulaEnglish);
     if (utf8.empty()) utf8 = EmbeddedText::Read(EmbeddedText::kEulaEnglish);
     if (utf8.empty()) return L"";
 

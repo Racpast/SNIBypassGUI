@@ -1,0 +1,54 @@
+# Copyright © 2026 Racpast. All Rights Reserved.
+#
+# This file is part of SNIBypassGUI, a proprietary software project.
+#
+# NOTICE: All information contained herein is, and remains the property of
+# Racpast. The intellectual and technical concepts contained herein are
+# proprietary to Racpast and are protected by copyright law and international
+# treaties. Dissemination of this information or reproduction of this material
+# is strictly forbidden unless prior written permission is obtained from Racpast.
+#
+# Unauthorized copying, modification, distribution, or use of this file,
+# via any medium, is strictly prohibited.
+#
+# For licensing inquiries: snibypassgui@gmail.com or racpast@gmail.com
+#
+# See the LICENSE file in the project root for full terms and conditions.
+
+# What an editor should do before clang-format ever runs. .clang-format governs
+# C++ layout and is the authority there; this file covers the rest — the files it
+# does not see, and the keystrokes that happen while code is being typed.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{c,cpp,h}]
+max_line_length = 96
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown, so stripping them
+# silently rewrites the document.
+trim_trailing_whitespace = false
+
+# The signed update tree is content-addressed: every payload file's bytes are
+# hashed at pack time and re-verified byte-for-byte on the client. An editor that
+# "tidies" one of these on save changes its hash and breaks the update for
+# everyone who already has the old copy. Nothing here is to be touched
+# automatically. (.gitattributes pins the same tree with -text, for the same
+# reason.)
+[resources/payload/**]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = false
+indent_style = unset
+indent_size = unset

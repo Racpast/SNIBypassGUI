@@ -18,10 +18,21 @@
 #pragma once
 #include <string>
 
-// Appends to logs\SNIBypassGUI.log beside the executable. Writing is off unless
-// [General] LoggingEnabled is set, so LogLine is safe to call unconditionally.
+// Appends to logs\snibypassgui.log beside the executable.
+//
+// Writing is off unless the user turns it on, so LogLine is safe to call
+// unconditionally and costs an atomic load when it is off. Every piece of state
+// this module owns is trivially destructible on purpose: a log call must remain
+// safe no matter when it happens, including after main() has returned, where a
+// std::mutex or std::wstring owned by another translation unit may already have
+// been destroyed.
 void LogInit();
 void LogLine(const std::wstring& level, const std::wstring& msg);
+
+// The live switch. LogSetEnabled persists the choice as well, so it is the single
+// call a caller needs; LogEnabled answers without touching the disk.
+bool LogEnabled();
+void LogSetEnabled(bool on);
 
 #define LOGI(m) LogLine(L"INFO", (m))
 #define LOGW(m) LogLine(L"WARN", (m))

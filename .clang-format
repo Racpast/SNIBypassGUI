@@ -1,0 +1,94 @@
+# Copyright © 2026 Racpast. All Rights Reserved.
+#
+# This file is part of SNIBypassGUI, a proprietary software project.
+#
+# NOTICE: All information contained herein is, and remains the property of
+# Racpast. The intellectual and technical concepts contained herein are
+# proprietary to Racpast and are protected by copyright law and international
+# treaties. Dissemination of this information or reproduction of this material
+# is strictly forbidden unless prior written permission is obtained from Racpast.
+#
+# Unauthorized copying, modification, distribution, or use of this file,
+# via any medium, is strictly prohibited.
+#
+# For licensing inquiries: snibypassgui@gmail.com or racpast@gmail.com
+#
+# See the LICENSE file in the project root for full terms and conditions.
+
+# The Google C++ Style Guide, with the handful of deviations this codebase was
+# already written to. Each one is a decision, not a preference left at default:
+# a rule that has to be re-argued at every review is a rule that does not hold.
+---
+Language: Cpp
+BasedOnStyle: Google
+Standard: c++17
+
+# Four spaces, not two. Google's two are calibrated for a codebase whose call
+# depth is shallow because most logic lives behind interfaces; this one nests
+# real control flow inside Win32 error handling, where two spaces stop
+# separating levels at a glance.
+IndentWidth: 4
+AccessModifierOffset: -4
+
+# 96 columns. Wide enough for a Win32 call with its full argument list on one
+# line, narrow enough to keep two files side by side.
+ColumnLimit: 96
+
+# Pinned rather than inferred. DerivePointerAlignment lets the majority in each
+# file decide, which means a file can silently adopt the opposite convention
+# from its neighbours the moment its balance tips.
+DerivePointerAlignment: false
+PointerAlignment: Left
+
+# Never split a string literal. The user-visible text lives in one table in
+# app/i18n.cpp, and a formatter that breaks those literals at a column boundary
+# splits Chinese sentences mid-word into fragments no translator can read.
+BreakStringLiterals: false
+
+# A switch whose arms are one statement each reads as a table, and every such
+# switch here (tray command dispatch, failure-key mapping) is one.
+AllowShortCaseLabelsOnASingleLine: true
+
+# Collapse an accessor defined inside its class, never a free function. Google's
+# "All" would fold a one-line function body up into its signature wherever it
+# fits, which is right for a trivial getter and wrong for a named step of a
+# procedure — the name is on the left of a brace instead of on a line of its own,
+# and the next reader has to parse the line to find out that it is a definition.
+AllowShortFunctionsOnASingleLine: Inline
+
+# Comments are prose here, hand-wrapped for where the sentences break. Reflowing
+# rewraps them at the column limit instead, which is a different — and worse —
+# set of line breaks. Anything genuinely over the limit is reported by the
+# lint target rather than silently rewritten.
+ReflowComments: Never
+
+# Include order, regrouped into fixed categories. This is not cosmetic: several
+# Windows SDK headers only compile in one order, so leaving it to whoever edits
+# the file last is how a build breaks on a machine that is not yours.
+#
+#   1  winsock2.h and friends — MUST precede windows.h. windows.h pulls in the
+#      original winsock.h, whose declarations then collide with Winsock 2's.
+#   2  windows.h itself.
+#   3  the rest of the Windows SDK, all of which expects windows.h first.
+#   4  the C++ standard library.
+#   5  this project.
+#
+# The file's own header is category 0 (clang-format places it first on its own).
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<(winsock2|ws2tcpip|mswsock)\.h>'
+    Priority: 1
+  - Regex: '^<windows\.h>'
+    Priority: 2
+  - Regex: '^<[[:alnum:]_]+\.h>'
+    Priority: 3
+  - Regex: '^<[[:alnum:]_/]+>'
+    Priority: 4
+  - Regex: '^"'
+    Priority: 5
+
+# LF everywhere, matching .gitattributes. Stated here too so that formatting a
+# file fixes its line endings instead of leaving that to a separate pass.
+LineEnding: LF
+InsertNewlineAtEOF: true

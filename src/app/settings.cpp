@@ -40,12 +40,24 @@ std::wstring SettingsPath() {
     return ExeDir() + L"config.ini";
 }
 
-bool LoggingEnabled()            { return ReadFlag(L"LoggingEnabled"); }
-void SetLoggingEnabled(bool on)  { WriteFlag(L"LoggingEnabled", on); }
-bool EulaAccepted()              { return ReadFlag(L"EulaAccepted"); }
-void SetEulaAccepted(bool ok)    { WriteFlag(L"EulaAccepted", ok); }
-bool AutoUpdateEnabled()         { return ReadFlag(L"AutoUpdate"); }
-void SetAutoUpdateEnabled(bool on) { WriteFlag(L"AutoUpdate", on); }
+bool LoggingEnabled() {
+    return ReadFlag(L"LoggingEnabled");
+}
+void SetLoggingEnabled(bool on) {
+    WriteFlag(L"LoggingEnabled", on);
+}
+bool EulaAccepted() {
+    return ReadFlag(L"EulaAccepted");
+}
+void SetEulaAccepted(bool ok) {
+    WriteFlag(L"EulaAccepted", ok);
+}
+bool AutoUpdateEnabled() {
+    return ReadFlag(L"AutoUpdate");
+}
+void SetAutoUpdateEnabled(bool on) {
+    WriteFlag(L"AutoUpdate", on);
+}
 
 // Stored as a word rather than 0/1 because the preference is genuinely
 // tri-state: an absent key ("never asked") must not read as "declined". An

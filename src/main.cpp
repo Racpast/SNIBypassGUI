@@ -34,35 +34,55 @@
 
 namespace {
 
+// How long to wait for the single-instance lock after clearing the way for it.
+// A bounded wait on a kernel object: it returns the moment the previous owner
+// releases the mutex, which happens as that process is torn down.
+constexpr DWORD kInstanceLockTimeoutMs = 5000;
+
 bool HasFlag(const std::wstring& cmdline, const std::wstring& flag) {
     return LowerW(cmdline).find(LowerW(flag)) != std::wstring::npos;
 }
 
-// Keep THIS process and kill every other copy, regardless of where it runs from.
+// Keep THIS process and terminate every other copy, regardless of where it runs
+// from. KillTree does not return until each one is actually gone, so by the time
+// this returns the lock below is genuinely free to take.
 void EnforceSingleInstance() {
     const DWORD self = GetCurrentProcessId();
     for (DWORD pid : Process::FindByName(L"SNIBypassGUI.exe")) {
         if (pid == self) continue;
-        LOGW(L"Killing another SNIBypassGUI instance, pid " + std::to_wstring(pid));
+        LOGW(L"Terminating another SNIBypassGUI instance, pid " + std::to_wstring(pid));
         Process::KillTree(pid);
     }
 }
 
-// Owns the single-instance mutex for the lifetime of the run.
-class InstanceMutex {
+// Holds the single-instance mutex for the lifetime of the run.
+//
+// The previous version created the mutex and never looked at the result, so it
+// proved nothing and prevented nothing. Ownership has to be acquired to mean
+// anything: if it cannot be, a copy we failed to terminate is still running and
+// this one must not start a second stack on top of it.
+class InstanceLock {
 public:
-    InstanceMutex() : handle_(CreateMutexW(nullptr, TRUE, APP_MUTEX_NAME)) {}
-    ~InstanceMutex() {
-        if (handle_) {
-            ReleaseMutex(handle_);
-            CloseHandle(handle_);
-        }
+    explicit InstanceLock(DWORD timeoutMs)
+        : handle_(CreateMutexW(nullptr, FALSE, APP_MUTEX_NAME)) {
+        if (!handle_) return;
+        const DWORD result = WaitForSingleObject(handle_, timeoutMs);
+        // WAIT_ABANDONED is the normal outcome here: the copy we just terminated
+        // died holding the mutex, and the kernel hands ownership to us anyway.
+        held_ = (result == WAIT_OBJECT_0 || result == WAIT_ABANDONED);
     }
-    InstanceMutex(const InstanceMutex&) = delete;
-    InstanceMutex& operator=(const InstanceMutex&) = delete;
+    ~InstanceLock() {
+        if (held_) ReleaseMutex(handle_);
+        if (handle_) CloseHandle(handle_);
+    }
+    InstanceLock(const InstanceLock&) = delete;
+    InstanceLock& operator=(const InstanceLock&) = delete;
+
+    bool held() const { return held_; }
 
 private:
-    HANDLE handle_;
+    HANDLE handle_ = nullptr;
+    bool held_ = false;
 };
 
 }  // namespace
@@ -71,8 +91,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR lpCmdLine, int) {
     const std::wstring cmdline = lpCmdLine ? lpCmdLine : L"";
 
     LogInit();
-    LOGI(L"=== SNIBypassGUI " + GetVersionDisplayStr() + L" (" + APP_VERSION_NUM
-         + L") starting (args: " + cmdline + L") ===");
+    LOGI(L"=== SNIBypassGUI " + GetVersionDisplayStr() + L" (" + APP_VERSION_NUM +
+         L") starting (args: " + cmdline + L") ===");
 
     // 1. Require administrator, elevating if necessary.
     if (!IsRunningAsAdmin()) {
@@ -91,29 +111,45 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR lpCmdLine, int) {
         return 0;
     }
 
-    // 3. Single instance: kill any other copy, keep this one. The named mutex closes
-    //    the race where two copies start simultaneously.
+    // 3. Single instance: terminate any other copy, then take the lock that proves
+    //    we are the only one left.
     EnforceSingleInstance();
-    const InstanceMutex instanceMutex;
+    const InstanceLock instanceLock(kInstanceLockTimeoutMs);
+    if (!instanceLock.held()) {
+        LOGE(L"Another instance still holds the single-instance lock; exiting.");
+        return 0;
+    }
 
-    // 4. Only our own child binaries may be running.
+    // 4. Everything the service stack owns — the local DNS server's thread, the DNS
+    //    policy rule, the children and their job objects — lives inside this object,
+    //    and therefore ends before wWinMain returns rather than during static
+    //    destruction.
+    const Services::Runtime runtime;
+
+    // 5. Only our own child binaries may be running.
     Services::EnforceCleanSlate();
 
-    const bool autostartMode = HasFlag(cmdline, L"-autostart") || HasFlag(cmdline, L"/autostart");
+    const bool autostartMode =
+        HasFlag(cmdline, L"-autostart") || HasFlag(cmdline, L"/autostart");
 
-    // 5. Every launch needs an accepted agreement before the tray appears. Declining
+    // 6. Every launch needs an accepted agreement before the tray appears. Declining
     //    exits without starting anything.
     if (!Eula::EnsureAccepted(instance)) {
         LOGI(L"User declined the agreement; exiting.");
         return 0;
     }
 
-    // 6. Ensure the payload is present. When it is missing on a fixed install, this
+    // 7. Ensure the payload is present. When it is missing on a fixed install, this
     //    fetches it through the signed update channel — only reached after the
     //    agreement, so there is no network access before it.
-    if (!Bootstrap::EnsurePayload()) {
-        LOGE(L"Payload unavailable; exiting.");
-        return 0;
+    switch (Bootstrap::EnsurePayload()) {
+        case Bootstrap::PayloadStatus::Ready: break;
+        case Bootstrap::PayloadStatus::Restarting:
+            LOGI(L"Exiting so the update helper can put the new executable in place.");
+            return 0;
+        case Bootstrap::PayloadStatus::Unavailable:
+            LOGE(L"Payload unavailable; exiting.");
+            return 0;
     }
 
     if (!Tray::Create(instance)) return 1;

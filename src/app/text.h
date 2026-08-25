@@ -18,7 +18,7 @@
 #pragma once
 #include <string>
 
-std::string  WideToUtf8(const std::wstring& w);
+std::string WideToUtf8(const std::wstring& w);
 std::wstring Utf8ToWide(const std::string& s);
 std::wstring TrimW(const std::wstring& s);
 std::wstring LowerW(std::wstring s);

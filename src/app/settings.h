@@ -22,6 +22,10 @@
 // defaults to off/absent, so a missing file behaves like a fresh install.
 std::wstring SettingsPath();
 
+// Persistence for the logging switch. Callers outside logging.cpp should use
+// LogSetEnabled/LogEnabled instead: those keep the in-memory flag a log call reads
+// in step with the file, so writing a line never has to touch the disk to find out
+// whether it is allowed to.
 bool LoggingEnabled();
 void SetLoggingEnabled(bool on);
 bool EulaAccepted();

@@ -16,25 +16,16 @@
 # See the LICENSE file in the project root for full terms and conditions.
 
 cmake_minimum_required(VERSION 3.21)
-project(SNIBypassGUI VERSION 5.0.0 LANGUAGES C CXX)
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_C_STANDARD 11)
-
-option(SNIB_BUILD_TESTS "Build the unit test suite" OFF)
-
-# ---------------------------------------------------------------------------
-# Windows only.
-# ---------------------------------------------------------------------------
-if(NOT WIN32)
-    message(FATAL_ERROR "SNIBypassGUI targets Windows. Configure with a MinGW-w64 toolchain.")
-endif()
 
 # ---------------------------------------------------------------------------
 # Version — single source of truth is APP_VERSION_NUM in src/app/version.h.
+#
+# Read before project(), so that even CMake's own PROJECT_VERSION comes from
+# there. Every other copy of the version in this build — the native FILEVERSION
+# resource, the assembly manifest — is generated from these variables, so a bump
+# is one edit in one file and nothing can be left behind at the old number.
 # ---------------------------------------------------------------------------
-file(STRINGS "${CMAKE_SOURCE_DIR}/src/app/version.h" _ver_line
+file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/src/app/version.h" _ver_line
      REGEX "^[ \t]*#define[ \t]+APP_VERSION_NUM[ \t]+L\"")
 if(NOT _ver_line)
     message(FATAL_ERROR "APP_VERSION_NUM not found in src/app/version.h")
@@ -58,7 +49,27 @@ foreach(_i RANGE 3)
     set(SNIB_VER_${_name} ${_part})
 endforeach()
 set(SNIB_VER_NUMERIC "${SNIB_VER_A}.${SNIB_VER_B}.${SNIB_VER_C}.${SNIB_VER_D}")
+
+project(SNIBypassGUI VERSION ${SNIB_VER_NUMERIC} LANGUAGES C CXX)
 message(STATUS "SNIBypassGUI version: ${SNIB_VERSION} (numeric ${SNIB_VER_NUMERIC})")
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 11)
+
+option(SNIB_BUILD_TESTS "Build the unit test suite" OFF)
+
+# What clangd and clang-tidy read to learn each translation unit's flags. Without
+# it an editor falls back to guessing them, and every Windows header resolves to
+# nothing — the diagnostics that follow are about the guess, not the code.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# ---------------------------------------------------------------------------
+# Windows only.
+# ---------------------------------------------------------------------------
+if(NOT WIN32)
+    message(FATAL_ERROR "SNIBypassGUI targets Windows. Configure with a MinGW-w64 toolchain.")
+endif()
 
 # ---------------------------------------------------------------------------
 # Compile definitions applied to every target.
@@ -88,27 +99,35 @@ file(MAKE_DIRECTORY "${SNIB_GENERATED_DIR}")
 set(SNIB_APP_RC "${SNIB_GENERATED_DIR}/app.rc")
 configure_file("${CMAKE_SOURCE_DIR}/src/app.rc.in" "${SNIB_APP_RC}" @ONLY)
 
+# The assembly manifest carries the version too, so it is generated from the same
+# variables rather than kept in step by hand. It lands beside the generated app.rc,
+# which is where that script's reference to it resolves from.
+configure_file("${CMAKE_SOURCE_DIR}/src/app.manifest.in"
+               "${SNIB_GENERATED_DIR}/app.manifest" @ONLY)
+
 enable_language(RC)
-set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I${CMAKE_SOURCE_DIR}/resources/branding -I${CMAKE_SOURCE_DIR}/src -I${CMAKE_SOURCE_DIR}/resources/embedded")
+set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I${SNIB_GENERATED_DIR} -I${CMAKE_SOURCE_DIR}/resources/branding -I${CMAKE_SOURCE_DIR}/src -I${CMAKE_SOURCE_DIR}/resources/embedded")
 
 # ---------------------------------------------------------------------------
 # Shared object library: every translation unit except the entry point.
 # ---------------------------------------------------------------------------
-set(SNIB_WINDIVERT_DIR "${CMAKE_SOURCE_DIR}/third_party/windivert")
-
 add_library(snib_core OBJECT
     src/app/bootstrap.cpp
     src/app/filesystem.cpp
     src/app/i18n.cpp
     src/app/logging.cpp
     src/app/paths.cpp
-    src/app/service_state.cpp
     src/app/services.cpp
     src/app/settings.cpp
     src/app/text.cpp
     src/app/version.cpp
     src/dns/file_watcher.cpp
-    src/dns/interceptor.cpp
+    src/dns/message.cpp
+    src/dns/nrpt.cpp
+    src/dns/redirector.cpp
+    src/dns/resolver.cpp
+    src/dns/rules.cpp
+    src/platform/autostart.cpp
     src/platform/command.cpp
     src/platform/elevation.cpp
     src/platform/embedded_text.cpp
@@ -123,7 +142,6 @@ add_library(snib_core OBJECT
 
 target_include_directories(snib_core PUBLIC
     "${CMAKE_SOURCE_DIR}/src"
-    "${SNIB_WINDIVERT_DIR}/include"
     "${SNIB_GENERATED_DIR}")
 
 target_compile_options(snib_core PRIVATE
@@ -160,7 +178,6 @@ add_executable(SNIBypassGUI WIN32
 
 target_include_directories(SNIBypassGUI PRIVATE
     "${CMAKE_SOURCE_DIR}/src"
-    "${SNIB_WINDIVERT_DIR}/include"
     "${SNIB_GENERATED_DIR}")
 
 target_compile_options(SNIBypassGUI PRIVATE
@@ -187,8 +204,11 @@ add_custom_command(TARGET SNIBypassGUI POST_BUILD
             -P "${CMAKE_SOURCE_DIR}/cmake/VerifyManifest.cmake"
     VERBATIM)
 
+# taskschd/oleaut32: start-at-logon is registered through the Task Scheduler API,
+# so a non-ASCII install path never has to survive a console code page.
 target_link_libraries(SNIBypassGUI PRIVATE
-    iphlpapi ws2_32 wininet bcrypt crypt32 shell32 ole32 advapi32 user32 gdi32 comctl32)
+    iphlpapi ws2_32 wininet bcrypt crypt32 shell32 ole32 oleaut32 taskschd advapi32 user32
+    gdi32 comctl32)
 
 # ---------------------------------------------------------------------------
 # Tests (opt-in).

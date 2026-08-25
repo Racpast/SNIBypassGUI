@@ -19,6 +19,7 @@
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
 #include <iphlpapi.h>
 
 #include <algorithm>
@@ -69,33 +70,25 @@ bool IsOccupied(int port) {
 bool IsSystemCritical(DWORD pid) {
     if (pid == 0 || pid == 4) return true;  // Idle and System
 
-    // Check if the process is a known system service that should not be killed.
     // The System process (PID 4) hosts kernel-mode drivers including http.sys,
-    // which parks 80/443 for IIS/BranchCache. We handle http.sys by stopping
-    // the services (net stop http), never by killing PID 4.
-    const std::wstring img = LowerW(Process::ImagePath(pid));
-    if (img.empty()) return true;  // cannot query, assume critical
+    // which parks 80/443 for IIS/BranchCache. We handle http.sys by stopping the
+    // services (net stop http), never by killing PID 4.
+    std::wstring image;
+    if (!Process::TryImagePath(pid, image)) return true;  // unidentified: assume critical
+    image = LowerW(image);
 
     // System-protected paths: anything under System32 that's not our service.
-    if (img.find(L"\\system32\\") != std::wstring::npos ||
-        img.find(L"\\syswow64\\") != std::wstring::npos) {
+    if (image.find(L"\\system32\\") != std::wstring::npos ||
+        image.find(L"\\syswow64\\") != std::wstring::npos) {
         return true;
     }
 
     // Common system services that legitimately hold ports.
-    if (img.find(L"\\svchost.exe") != std::wstring::npos ||
-        img.find(L"\\services.exe") != std::wstring::npos ||
-        img.find(L"\\lsass.exe") != std::wstring::npos ||
-        img.find(L"\\wininit.exe") != std::wstring::npos ||
-        img.find(L"\\csrss.exe") != std::wstring::npos) {
-        return true;
-    }
-
-    return false;
-}
-
-std::wstring GetListenerImagePath(DWORD pid) {
-    return Process::ImagePath(pid);
+    return image.find(L"\\svchost.exe") != std::wstring::npos ||
+           image.find(L"\\services.exe") != std::wstring::npos ||
+           image.find(L"\\lsass.exe") != std::wstring::npos ||
+           image.find(L"\\wininit.exe") != std::wstring::npos ||
+           image.find(L"\\csrss.exe") != std::wstring::npos;
 }
 
 }  // namespace Ports

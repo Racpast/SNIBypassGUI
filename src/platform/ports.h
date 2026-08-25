@@ -18,7 +18,6 @@
 #pragma once
 #include <windows.h>
 
-#include <string>
 #include <vector>
 
 namespace Ports {
@@ -31,11 +30,8 @@ std::vector<DWORD> ListenersOn(int port);
 bool IsOccupied(int port);
 
 // Check if a PID is the System process (PID 4) or a critical system service
-// that should never be killed. Returns true if the process is system-critical.
+// that should never be killed. A process whose image path cannot be read counts
+// as critical: without an identification there is no basis for terminating it.
 bool IsSystemCritical(DWORD pid);
-
-// Get the image path for a PID that holds a port. Returns empty string if the
-// process cannot be queried (access denied, doesn't exist, etc).
-std::wstring GetListenerImagePath(DWORD pid);
 
 }  // namespace Ports

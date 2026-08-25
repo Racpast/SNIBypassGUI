@@ -18,6 +18,7 @@
 #include "platform/elevation.h"
 
 #include <windows.h>
+
 #include <shellapi.h>
 
 #include "app/paths.h"

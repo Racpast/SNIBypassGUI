@@ -18,6 +18,7 @@
 #include "platform/shortcut.h"
 
 #include <windows.h>
+
 #include <objbase.h>
 #include <shlguid.h>
 #include <shlobj.h>
@@ -27,6 +28,7 @@
 #include "app/paths.h"
 #include "app/text.h"
 #include "app/version.h"
+#include "platform/com.h"
 
 namespace Shortcut {
 namespace {
@@ -34,25 +36,6 @@ namespace {
 // Named after the app, so it reads as "SNIBypassGUI" on the desktop regardless of
 // what the executable file happens to be called.
 const wchar_t kLinkName[] = APP_NAME L".lnk";
-
-// Initializes COM for the calling thread and undoes it on scope exit. The tray
-// thread may already have COM up, so an S_FALSE / RPC_E_CHANGED_MODE result is
-// not an error — we simply skip the matching uninitialize.
-class ComScope {
-public:
-    ComScope() {
-        owned_ = SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED |
-                                                       COINIT_DISABLE_OLE1DDE));
-    }
-    ~ComScope() {
-        if (owned_) CoUninitialize();
-    }
-    ComScope(const ComScope&) = delete;
-    ComScope& operator=(const ComScope&) = delete;
-
-private:
-    bool owned_ = false;
-};
 
 // The current user's desktop folder with a trailing backslash, empty on failure.
 // Resolved through the shell rather than USERPROFILE so a redirected (OneDrive /
@@ -69,28 +52,23 @@ std::wstring DesktopDir() {
 }
 
 std::wstring ReadLinkTarget(const std::wstring& lnk) {
-    ComScope com;
-    IShellLinkW* link = nullptr;
-    if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER,
-                                IID_IShellLinkW, reinterpret_cast<void**>(&link))))
+    const Com::Scope com;
+    Com::Ptr<IShellLinkW> link;
+    if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_IShellLinkW,
+                                link.PutVoid())))
         return L"";
 
-    std::wstring target;
-    IPersistFile* file = nullptr;
-    if (SUCCEEDED(link->QueryInterface(IID_IPersistFile, reinterpret_cast<void**>(&file)))) {
-        if (SUCCEEDED(file->Load(lnk.c_str(), STGM_READ))) {
-            wchar_t buf[MAX_PATH * 2] = {};
-            // SLGP_RAWPATH reads the stored path as-is, without letting the shell
-            // "resolve" a stale link by searching the disk for a moved target —
-            // that search is slow and could silently match the wrong file.
-            if (SUCCEEDED(link->GetPath(buf, static_cast<int>(std::size(buf)), nullptr,
-                                        SLGP_RAWPATH)))
-                target = buf;
-        }
-        file->Release();
-    }
-    link->Release();
-    return target;
+    Com::Ptr<IPersistFile> file;
+    if (FAILED(link->QueryInterface(IID_IPersistFile, file.PutVoid()))) return L"";
+    if (FAILED(file->Load(lnk.c_str(), STGM_READ))) return L"";
+
+    wchar_t buf[MAX_PATH * 2] = {};
+    // SLGP_RAWPATH reads the stored path as-is, without letting the shell "resolve"
+    // a stale link by searching the disk for a moved target — that search is slow
+    // and could silently match the wrong file.
+    if (FAILED(link->GetPath(buf, static_cast<int>(std::size(buf)), nullptr, SLGP_RAWPATH)))
+        return L"";
+    return buf;
 }
 
 bool SamePath(const std::wstring& a, const std::wstring& b) {
@@ -125,10 +103,10 @@ bool Create() {
         return false;
     }
 
-    ComScope com;
-    IShellLinkW* link = nullptr;
-    if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER,
-                                IID_IShellLinkW, reinterpret_cast<void**>(&link)))) {
+    const Com::Scope com;
+    Com::Ptr<IShellLinkW> link;
+    if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_IShellLinkW,
+                                link.PutVoid()))) {
         LOGE(L"Shortcut: CoCreateInstance(ShellLink) failed.");
         return false;
     }
@@ -143,13 +121,12 @@ bool Create() {
     link->SetDescription(T(L"shortcut.description"));
     link->SetIconLocation(ExePath().c_str(), 0);
 
-    bool ok = false;
-    IPersistFile* file = nullptr;
-    if (SUCCEEDED(link->QueryInterface(IID_IPersistFile, reinterpret_cast<void**>(&file)))) {
-        ok = SUCCEEDED(file->Save(lnk.c_str(), TRUE));
-        file->Release();
+    Com::Ptr<IPersistFile> file;
+    if (FAILED(link->QueryInterface(IID_IPersistFile, file.PutVoid()))) {
+        LOGE(L"Shortcut: the shell link does not support IPersistFile.");
+        return false;
     }
-    link->Release();
+    const bool ok = SUCCEEDED(file->Save(lnk.c_str(), TRUE));
 
     if (ok)
         LOGI(L"Shortcut: created " + lnk);

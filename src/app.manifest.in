@@ -16,9 +16,13 @@
   For licensing inquiries: snibypassgui@gmail.com or racpast@gmail.com
 
   See the LICENSE file in the project root for full terms and conditions.
+
+  GENERATED FROM app.manifest.in by CMake; do not edit the copy in the build
+  tree. The version comes from APP_VERSION_NUM in src/app/version.h, like every
+  other version in the build.
 -->
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <assemblyIdentity version="5.0.0.0" processorArchitecture="*" name="Racpast.SNIBypassGUI" type="win32"/>
+  <assemblyIdentity version="@SNIB_VER_NUMERIC@" processorArchitecture="*" name="Racpast.SNIBypassGUI" type="win32"/>
   <description>SNIBypassGUI</description>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>

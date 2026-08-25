@@ -16,7 +16,6 @@
 // See the LICENSE file in the project root for full terms and conditions.
 
 #pragma once
-#include <string>
 
 enum class Lang { English, Chinese };
 

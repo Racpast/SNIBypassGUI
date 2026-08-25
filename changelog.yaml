@@ -20,6 +20,21 @@
 
 # --- newest first; CI reads the topmost entry ---
 
+- version: "5.1.0"
+  date: "2026-08-26"
+  en: |
+    - Reworked DNS redirection from WinDivert packet interception to Windows NRPT combined with a local DNS service, effectively preventing false positives and interference from security software.
+    - Improved service status detection: manually started component processes are now correctly identified and displayed as running.
+    - Enhanced startup sequence reliability: introduced full integrity verification during startup; failure of any component automatically rolls back previously started ones to prevent incomplete service states.
+    - Reworked start-at-logon to use the Task Scheduler API; fixed issues where start-at-logon and the nginx component failed to launch when the installation path contained non-ASCII characters.
+    - Various stability, reliability, and compatibility improvements.
+  zh-CN: |
+    - 重构 DNS 重定向机制，由 WinDivert 拦截改为基于 NRPT 与本地 DNS 服务实现，可有效避免安全软件误报与拦截。
+    - 优化服务状态检测，现可正确识别并显示手动启动的组件进程。
+    - 增强启动流程可靠性，启动过程新增完整性校验，任一组件启动失败时将自动回滚已启动的组件，避免服务处于不完整状态。
+    - 重构开机自启动实现，改用任务计划程序 API；修复安装路径包含非 ASCII 字符时，开机自启动与 nginx 组件无法正常启动的问题。
+    - 其他若干稳定性、可靠性与兼容性改进。
+
 - version: "5.0.0"
   date: "2026-08-24"
   en: |

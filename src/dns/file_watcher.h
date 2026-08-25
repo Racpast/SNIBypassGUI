@@ -18,24 +18,22 @@
 #pragma once
 // File monitoring with debouncing for DNS rules hot-reload.
 //
-// Watches a single file for changes and invokes a callback after the file has settled
-// (no writes for a configurable period). This handles editors that write in chunks,
-// save-as-rename patterns, and other noisy modification sequences.
+// Watches a single file and invokes a callback once it has settled (no further
+// change for a configurable period), which absorbs editors that write in chunks,
+// save-as-rename patterns and other noisy sequences.
 //
 // Usage:
-//   FileWatcher watcher(L"path\\to\\dns_rules.txt", []() {
-//       // Reload rules here
-//   }, 500);  // 500ms debounce
+//   FileWatcher watcher(L"path\\to\\dns_hosts.txt", [] { /* reload */ }, 500);
 //   watcher.Start();
-//   // ... later ...
+//   ...
 //   watcher.Stop();
 //
-// Thread-safe: the callback runs on a dedicated worker thread, NOT the thread that
-// called Start(). The callback must be thread-safe with respect to whatever it does.
+// The callback runs on the watcher's own worker thread, never on the thread that
+// called Start(), so it must be safe to run concurrently with whatever else the
+// owner is doing.
 
 #include <atomic>
 #include <functional>
-#include <mutex>
 #include <string>
 #include <thread>
 
@@ -43,34 +41,36 @@ namespace Dns {
 
 class FileWatcher {
 public:
-    // `path` is the file to watch. `callback` is invoked after `debounceMs` milliseconds
-    // of no further changes. `debounceMs` defaults to 500ms, which handles most editors.
+    // `callback` fires after `debounceMs` with no further change.
     FileWatcher(const std::wstring& path, std::function<void()> callback,
                 unsigned debounceMs = 500);
     ~FileWatcher();
     FileWatcher(const FileWatcher&) = delete;
     FileWatcher& operator=(const FileWatcher&) = delete;
 
-    // Start monitoring. Returns immediately; changes are handled on a worker thread.
+    // Start monitoring. Returns immediately; a second call while already watching
+    // does nothing.
     void Start();
 
-    // Stop monitoring and wait for the worker thread to exit. Safe to call even if
-    // never started or already stopped.
+    // Stop monitoring and wait for the worker thread to exit.
+    //
+    // Every step is guarded by the resource it releases, not by a "running" flag:
+    // the thread is joined if it is joinable, the handle closed if it is open. A
+    // flag cannot express this, because the worker clears it when it exits on its
+    // own — and an early return on that flag would skip the join and leave a
+    // joinable std::thread to be destroyed, which terminates the process.
     void Stop();
-
-    bool Running() const { return m_running.load(); }
 
 private:
     void Loop();
 
-    std::wstring             m_path;
-    std::function<void()>    m_callback;
-    unsigned                 m_debounceMs;
-    void*                    m_dirHandle = nullptr;  // directory handle for ReadDirectoryChangesW
-    std::wstring             m_fileName;             // bare filename to filter events
-    std::thread              m_thread;
-    std::atomic<bool>        m_running{false};
-    std::atomic<bool>        m_stopRequested{false};
+    std::wstring m_path;
+    std::function<void()> m_callback;
+    unsigned m_debounceMs;
+    void* m_dirHandle = nullptr;  // directory being watched
+    std::wstring m_fileName;      // bare name, to filter events
+    std::thread m_thread;
+    std::atomic<bool> m_stopRequested{false};
 };
 
 }  // namespace Dns

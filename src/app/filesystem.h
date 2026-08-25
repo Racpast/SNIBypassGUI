@@ -28,14 +28,14 @@ namespace FileSystem {
 
 // A compiled glob pattern that can be matched against file paths.
 struct GlobPattern {
-    std::wstring raw;           // original pattern string
-    bool         isRecursive;   // contains **
-    bool         isValid;       // passed safety checks
+    std::wstring raw;  // original pattern string
+    bool isRecursive;  // contains **
+    bool isValid;      // passed safety checks
 
     // Internal compiled representation (opaque to callers).
     struct Segment {
         enum Type { Literal, Wildcard, RecursiveWildcard };
-        Type         type;
+        Type type;
         std::wstring text;  // for Literal segments
     };
     std::vector<Segment> segments;
@@ -119,8 +119,7 @@ size_t DeleteByPattern(const std::wstring& baseDir, const std::wstring& pattern,
 // Delete multiple patterns under `baseDir`. Equivalent to calling DeleteByPattern
 // for each, but more efficient when patterns overlap (a file is deleted at most once).
 // Returns the total count of items deleted.
-size_t DeleteByPatterns(const std::wstring& baseDir,
-                        const std::vector<std::wstring>& patterns,
+size_t DeleteByPatterns(const std::wstring& baseDir, const std::vector<std::wstring>& patterns,
                         const DeletionFilter& filter = nullptr);
 
 // ---- Enumeration ----
@@ -128,7 +127,6 @@ size_t DeleteByPatterns(const std::wstring& baseDir,
 // Enumerate all files and directories under `baseDir` matching `pattern`. The pattern
 // is relative to `baseDir`, and results are returned as paths relative to `baseDir`.
 // Directories have a trailing backslash.
-std::vector<std::wstring> Enumerate(const std::wstring& baseDir,
-                                     const std::wstring& pattern);
+std::vector<std::wstring> Enumerate(const std::wstring& baseDir, const std::wstring& pattern);
 
 }  // namespace FileSystem

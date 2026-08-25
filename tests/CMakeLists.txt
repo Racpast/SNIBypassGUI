@@ -28,6 +28,6 @@ target_compile_options(snib_tests PRIVATE
 target_link_options(snib_tests PRIVATE -static -static-libgcc -static-libstdc++)
 
 target_link_libraries(snib_tests PRIVATE
-    ws2_32 wininet bcrypt crypt32 iphlpapi shell32 ole32 advapi32)
+    ws2_32 wininet bcrypt crypt32 iphlpapi shell32 ole32 oleaut32 taskschd advapi32)
 
 add_test(NAME core_tests COMMAND snib_tests)

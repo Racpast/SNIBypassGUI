@@ -1,6 +1,6 @@
 # SNIBypassGUI Proprietary License
 
-**Version 2.0 — Effective Date: August 24, 2026**
+**Version 3.0 — Effective Date: August 26, 2026**
 
 Copyright © 2026 Racpast. All rights reserved.
 
@@ -20,7 +20,7 @@ part of it is offered under a free or open-source license except where Section 3
 expressly says so for a third-party component.
 
 The Author publishes the Software's source code for one reason only: the Software
-intercepts DNS traffic and operates a local TLS-terminating proxy, and users are
+redirects DNS resolution and operates a local TLS-terminating proxy, and users are
 entitled to verify for themselves that it does what it claims and nothing more.
 Source availability is a **transparency measure**, not a licensing model. Nothing
 in the act of publication may be construed as consent to compile, modify, reuse,
@@ -118,29 +118,15 @@ under that component's own license. Where this License would conflict with a
 Third-Party Component's license as applied to that component, that license
 controls and this License yields.
 
-**3.1 WinDivert.** The Software uses WinDivert, copyright © basil
-(basil@reqrypt.org), available under your choice of LGPL v3, GPL v3, or GPL v2.
-The complete license texts — including the GPL v3 text on which LGPL v3 depends —
-are in `third_party/windivert/LICENSE` in the repository and in
-`licenses/windivert/` in every Binary Release.
+**3.1 Right to replace.** You may at any time replace a Third-Party Component in
+an installation with a modified or differently versioned build of that component.
+Doing so is expressly permitted by this License, is not a modification of the
+Software, and is not a circumvention of any protection mechanism for the purposes
+of Section 6 or of the end-user agreement. The Author provides no support for, and
+makes no warranty regarding, an installation running a replaced Third-Party
+Component.
 
-**3.2 No combined work.** SNIBypassGUI links against no part of WinDivert. The
-executable resolves every WinDivert entry point at runtime by `LoadLibrary` and
-`GetProcAddress`; the WinDivert header contributes only type, structure, and
-constant definitions and no function bodies or import stubs. `WinDivert.dll` and
-`WinDivert64.sys` are distributed as unmodified, independent, separately
-replaceable files. The Software is therefore a work that *uses* the library at
-arm's length rather than a Combined Work under LGPL v3 § 4, and the obligations
-that section imposes on Combined Works do not attach to the Software.
-
-**3.3 Right to replace.** You may at any time replace the WinDivert files in an
-installation with a modified or differently versioned build of WinDivert. Doing so
-is expressly permitted by this License, is not a modification of the Software, and
-is not a circumvention of any protection mechanism for the purposes of Section 6 or
-of the end-user agreement. The Author provides no support for, and makes no
-warranty regarding, an installation running a replaced WinDivert.
-
-**3.4 nginx.** Binary Releases include a build of nginx compiled by the Author
+**3.2 nginx.** Binary Releases include a build of nginx compiled by the Author
 from modified nginx source code. nginx is copyright © Igor Sysoev and Nginx, Inc.,
 and is licensed under the 2-clause BSD license, which permits modification and
 redistribution. The nginx license is reproduced at
@@ -150,19 +136,19 @@ OpenSSL (Apache License 2.0) and PCRE2 (BSD). The Author's modifications to ngin
 are governed by this License; the original nginx code, OpenSSL, and PCRE2 remain
 under their respective licenses.
 
-**3.5 sni-gate.** `data/sni-gate.exe` is a separate work of the Author, published
+**3.3 sni-gate.** `data/sni-gate.exe` is a separate work of the Author, published
 independently under the MIT License and the Apache License 2.0 at the recipient's
 option. Nothing in this License narrows the rights you hold in that binary or its
 source under either of those licenses. Its presence in a Binary Release neither
 extends this License to it nor extends its licenses to anything else.
 
-**3.6 Other components.** Any additional third-party material distributed with the
+**3.4 Other components.** Any additional third-party material distributed with the
 Software carries its own license text at `licenses/` in the Binary Release. Where
 a component is present but its license is not reproduced, the omission is
 inadvertent, that component remains under its own license, and the Author will
 correct the omission on notice.
 
-**3.7 Redistributor obligations.** In any case where a Third-Party Component's
+**3.5 Redistributor obligations.** In any case where a Third-Party Component's
 license permits you to redistribute it, you must carry forward the license text,
 copyright notices, and any required attribution or source-availability notices for
 that component. This obligation exists under those licenses independently of this
@@ -342,15 +328,14 @@ copyright.
 **6.12 Circumvention of technical measures.** Circumvent, disable, or defeat any
 technical measure the Author employs to control access to the Software or to
 protect the Payload Data, including update manifest verification and integrity
-checks. Replacing a Third-Party Component under Section 3.3 is not circumvention.
+checks. Replacing a Third-Party Component under Section 3.1 is not circumvention.
 
 **6.13 Reverse engineering.** Decompile, disassemble, or reverse engineer any
 binary distributed as part of the Software, **except** (a) to the extent necessary
 to achieve interoperability, where and as that activity is permitted by applicable
 law notwithstanding any contractual prohibition; (b) for the security research
 permitted by Section 5.5; (c) as required to exercise a right you hold under a
-Third-Party Component's license, including any right under LGPL v3 to debug
-modifications to that component; and (d) as otherwise permitted by law
+Third-Party Component's license; and (d) as otherwise permitted by law
 notwithstanding this License. This Section and Section 6.1 are the complete
 statement of the Author's position on these activities; no other provision of this
 License restricts them further.
@@ -460,13 +445,13 @@ exclusion attaches to the person or persons operating it:
 controls, or operates either;
 
 (b) any GitHub account that has at any time used the username **coolapijust**,
-**mechrevo**, **dongzheyu**, **lzpls**, or **JetCPP-dongle**, and any person who
-created, controls, or operates such an account;
+**mechrevo**, **dongzheyu**, **lzpls**, **snishaper**, or **JetCPP-dongle**, and any
+person who created, controls, or operates such an account;
 
 (c) the repository **snishaper**, its forks, and its successors under any name, and
 any person who created, maintains, or has at any time maintained any of them;
 
-(d) the **snishaper** organization and any person who is or has been a member of
+(d) the **SnishaperTeam** organization and any person who is or has been a member of
 it, whether that membership is public or private;
 
 (e) any alternate, successor, or additional account operated by a person identified
@@ -763,7 +748,7 @@ including liability for infringement. The Author's remedies for your breach are
 cumulative and are not waived by termination.
 
 **13.3 Survival.** The following survive termination: Sections 1 (Preamble), 2
-(Definitions), 3.7 (Redistributor Obligations), 6 (Restrictions), 7 (Ownership), 8
+(Definitions), 3.5 (Redistributor Obligations), 6 (Restrictions), 7 (Ownership), 8
 (Restricted Parties), 9 (Enforcement), 10 (Choice of Law), 11 (Disclaimer), 12
 (Limitation of Liability), 13.2 and 13.3 (Effect of Termination and Survival), and
 14 (General Provisions).

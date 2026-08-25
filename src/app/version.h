@@ -26,14 +26,14 @@
 //
 // For display strings (tray tooltip, about dialog), use GetVersionDisplayStr()
 // which pulls from i18n key "version.display" with fallback to APP_VERSION_NUM.
-#define APP_VERSION_NUM L"5.0.0"
+#define APP_VERSION_NUM L"5.1.0"
 
 #include <string>
 std::wstring GetVersionDisplayStr();
 
-#define APP_NAME       L"SNIBypassGUI"
+#define APP_NAME L"SNIBypassGUI"
 #define APP_MUTEX_NAME L"Global\\SNIBypassGUI_SingleInstance_Mutex"
-#define APP_HOMEPAGE   L"https://github.com/racpast/SNIBypassGUI"
+#define APP_HOMEPAGE L"https://github.com/racpast/SNIBypassGUI"
 
 // Scheduled task used for autostart at logon.
 #define APP_TASK_NAME L"SNIBypassGUI_Autostart"

@@ -61,10 +61,16 @@ private:
             case '{': return ParseObject(v, depth);
             case '[': return ParseArray(v, depth);
             case '"': v.type = Value::Type::String; return ParseString(v.str);
-            case 't': v.type = Value::Type::Bool; v.boolean = true; return Literal("true");
-            case 'f': v.type = Value::Type::Bool; v.boolean = false; return Literal("false");
+            case 't':
+                v.type = Value::Type::Bool;
+                v.boolean = true;
+                return Literal("true");
+            case 'f':
+                v.type = Value::Type::Bool;
+                v.boolean = false;
+                return Literal("false");
             case 'n': v.type = Value::Type::Null; return Literal("null");
-            default:  return ParseNumber(v);
+            default: return ParseNumber(v);
         }
     }
 
@@ -183,14 +189,14 @@ private:
             if (++i_ >= s_.size()) return false;
             const char esc = s_[i_++];
             switch (esc) {
-                case '"':  out.push_back('"'); break;
+                case '"': out.push_back('"'); break;
                 case '\\': out.push_back('\\'); break;
-                case '/':  out.push_back('/'); break;
-                case 'b':  out.push_back('\b'); break;
-                case 'f':  out.push_back('\f'); break;
-                case 'n':  out.push_back('\n'); break;
-                case 'r':  out.push_back('\r'); break;
-                case 't':  out.push_back('\t'); break;
+                case '/': out.push_back('/'); break;
+                case 'b': out.push_back('\b'); break;
+                case 'f': out.push_back('\f'); break;
+                case 'n': out.push_back('\n'); break;
+                case 'r': out.push_back('\r'); break;
+                case 't': out.push_back('\t'); break;
                 case 'u': {
                     unsigned cp;
                     if (!ParseHex4(cp)) return false;
@@ -249,7 +255,7 @@ private:
     }
 
     const std::string& s_;
-    size_t             i_ = 0;
+    size_t i_ = 0;
 };
 
 }  // namespace

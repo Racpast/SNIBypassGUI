@@ -19,18 +19,42 @@
 
 #include <windows.h>
 
+#include <cwchar>
+#include <iterator>
+
 namespace {
 
-std::wstring g_exePath;
-std::wstring g_exeDir;
+// Resolved once, from any thread, and never torn down.
+//
+// These are read from worker threads (the update check, the tray's command
+// threads, the DNS server) as well as the UI thread, so the previous unguarded
+// "assign on first use" was a data race. INIT_ONCE and plain arrays keep the
+// storage free of both the race and a destructor, which matters because logging
+// resolves paths and must stay safe for the whole life of the process.
+INIT_ONCE g_once = INIT_ONCE_STATIC_INIT;
+wchar_t g_exePath[MAX_PATH * 2] = {};
+wchar_t g_exeDir[MAX_PATH * 2] = {};
+
+BOOL CALLBACK ResolveOnce(PINIT_ONCE, PVOID, PVOID*) {
+    const DWORD n =
+        GetModuleFileNameW(nullptr, g_exePath, static_cast<DWORD>(std::size(g_exePath)));
+    if (n == 0 || n >= std::size(g_exePath)) {
+        g_exePath[0] = L'\0';
+        return TRUE;
+    }
+    const wchar_t* lastSlash = nullptr;
+    for (const wchar_t* p = g_exePath; *p; ++p)
+        if (*p == L'\\' || *p == L'/') lastSlash = p;
+    if (lastSlash) {
+        const size_t keep = static_cast<size_t>(lastSlash - g_exePath) + 1;
+        std::wmemcpy(g_exeDir, g_exePath, keep);
+        g_exeDir[keep] = L'\0';
+    }
+    return TRUE;
+}
 
 void EnsureResolved() {
-    if (!g_exePath.empty()) return;
-    wchar_t buf[MAX_PATH * 2];
-    DWORD n = GetModuleFileNameW(nullptr, buf, static_cast<DWORD>(std::size(buf)));
-    g_exePath.assign(buf, n);
-    size_t slash = g_exePath.find_last_of(L"\\/");
-    g_exeDir = (slash == std::wstring::npos) ? L"" : g_exePath.substr(0, slash + 1);
+    InitOnceExecuteOnce(&g_once, ResolveOnce, nullptr, nullptr);
 }
 
 }  // namespace
@@ -50,8 +74,8 @@ std::wstring DataDir() {
 }
 
 std::wstring PathUnder(const std::wstring& rel) {
-    std::wstring r = rel;
-    for (wchar_t& c : r)
+    std::wstring native = rel;
+    for (wchar_t& c : native)
         if (c == L'/') c = L'\\';
-    return ExeDir() + r;
+    return ExeDir() + native;
 }

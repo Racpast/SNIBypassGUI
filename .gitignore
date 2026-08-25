@@ -1,6 +1,12 @@
-# Build output
-/build/
+# Build output. The pattern is deliberately wider than a single directory name:
+# CMake presets, IDEs and one-off verification builds all pick their own
+# (build-release, build-tests, cmake-build-debug), and a build tree that is not
+# ignored gets committed by the first `git add -A` that runs near it.
+/build*/
+/cmake-build-*/
+/out/
 /dist/
+compile_commands.json
 
 # Private keys — MUST NEVER be committed. The release signing key belongs outside
 # the repo entirely (e.g. %USERPROFILE%\.snib\signing_key.pem); this is a backstop

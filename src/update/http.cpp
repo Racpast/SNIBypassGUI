@@ -18,6 +18,7 @@
 #include "update/http.h"
 
 #include <windows.h>
+
 #include <wininet.h>
 
 #include "app/version.h"
@@ -41,8 +42,9 @@ bool Get(const std::wstring& url, std::string& out) {
 
     DWORD status = 0;
     DWORD statusLen = sizeof(status);
-    const bool gotStatus = HttpQueryInfoW(request, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
-                                          &status, &statusLen, nullptr) == TRUE;
+    const bool gotStatus =
+        HttpQueryInfoW(request, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &status,
+                       &statusLen, nullptr) == TRUE;
     // Accept only an explicit 2xx. If the status could not be read at all (e.g. a
     // non-HTTP handler), fall back to trusting the body, but never treat an
     // unknown or zero status as success on its own.

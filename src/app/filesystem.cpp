@@ -21,7 +21,6 @@
 
 #include <algorithm>
 #include <map>
-#include <queue>
 
 #include "app/logging.h"
 #include "app/text.h"
@@ -123,9 +122,9 @@ GlobPattern CompilePattern(const std::wstring& pattern) {
 
     // Safety checks first.
     if (pattern.empty()) return compiled;
-    if (pattern.find(L':') != std::wstring::npos) return compiled;  // drive letter or ADS
-    if (pattern[0] == L'\\' || pattern[0] == L'/') return compiled; // absolute path
-    if (pattern.find(L"..") != std::wstring::npos) return compiled; // traversal
+    if (pattern.find(L':') != std::wstring::npos) return compiled;   // drive letter or ADS
+    if (pattern[0] == L'\\' || pattern[0] == L'/') return compiled;  // absolute path
+    if (pattern.find(L"..") != std::wstring::npos) return compiled;  // traversal
 
     const std::wstring normalized = NormalizePath(pattern);
     const std::vector<std::wstring> segments = SplitPath(normalized);
@@ -233,9 +232,9 @@ bool IsSafePath(const std::wstring& p) {
 
 bool IsSafePatternSyntax(const std::wstring& p) {
     if (p.empty()) return false;
-    if (p.find(L':') != std::wstring::npos) return false;  // drive letter or ADS
-    if (p[0] == L'\\' || p[0] == L'/') return false;       // root-relative or UNC
-    if (p.find(L"..") != std::wstring::npos) return false; // traversal
+    if (p.find(L':') != std::wstring::npos) return false;   // drive letter or ADS
+    if (p[0] == L'\\' || p[0] == L'/') return false;        // root-relative or UNC
+    if (p.find(L"..") != std::wstring::npos) return false;  // traversal
 
     const std::vector<std::wstring> segments = SplitPath(p);
     for (const std::wstring& seg : segments) {
@@ -269,8 +268,8 @@ size_t EnsureDirectories(const std::vector<std::wstring>& dirs) {
     size_t created = 0;
     for (const std::wstring& dir : dirs) {
         const DWORD before = GetFileAttributesW(dir.c_str());
-        const bool existed = (before != INVALID_FILE_ATTRIBUTES &&
-                              (before & FILE_ATTRIBUTE_DIRECTORY) != 0);
+        const bool existed =
+            (before != INVALID_FILE_ATTRIBUTES && (before & FILE_ATTRIBUTE_DIRECTORY) != 0);
         if (EnsureDirectory(dir) && !existed) ++created;
     }
     return created;
@@ -311,8 +310,7 @@ void Delete(const std::wstring& path) {
     const DWORD attr = GetFileAttributesW(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return;
 
-    if (attr & FILE_ATTRIBUTE_READONLY)
-        SetFileAttributesW(path.c_str(), FILE_ATTRIBUTE_NORMAL);
+    if (attr & FILE_ATTRIBUTE_READONLY) SetFileAttributesW(path.c_str(), FILE_ATTRIBUTE_NORMAL);
 
     if (attr & FILE_ATTRIBUTE_REPARSE_POINT) {
         if (attr & FILE_ATTRIBUTE_DIRECTORY)
@@ -326,8 +324,7 @@ void Delete(const std::wstring& path) {
     }
 }
 
-std::vector<std::wstring> Enumerate(const std::wstring& baseDir,
-                                     const std::wstring& pattern) {
+std::vector<std::wstring> Enumerate(const std::wstring& baseDir, const std::wstring& pattern) {
     const GlobPattern compiled = CompilePattern(pattern);
     if (!compiled.isValid) return {};
 
@@ -353,7 +350,7 @@ size_t DeleteByPattern(const std::wstring& baseDir, const std::wstring& pattern,
     struct Match {
         std::wstring rel;
         std::wstring full;
-        bool         isDir;
+        bool isDir;
     };
     std::vector<Match> matches;
 
@@ -381,8 +378,7 @@ size_t DeleteByPattern(const std::wstring& baseDir, const std::wstring& pattern,
     return deleted;
 }
 
-size_t DeleteByPatterns(const std::wstring& baseDir,
-                        const std::vector<std::wstring>& patterns,
+size_t DeleteByPatterns(const std::wstring& baseDir, const std::vector<std::wstring>& patterns,
                         const DeletionFilter& filter) {
     // Compile all patterns first.
     std::vector<GlobPattern> compiled;
@@ -401,7 +397,7 @@ size_t DeleteByPatterns(const std::wstring& baseDir,
     struct Match {
         std::wstring rel;
         std::wstring full;
-        bool         isDir;
+        bool isDir;
     };
     std::map<std::wstring, Match> matchMap;
 

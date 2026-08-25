@@ -51,7 +51,7 @@ CURVE = ec.SECP256R1()
 # the build shipped. The human APP_VERSION_STR is display-only and never packed.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _VERSION_H = _REPO_ROOT / "src" / "app" / "version.h"
-# Canonical extract-and-run payload tree (paths.ini, data/, WinDivert dll+sys).
+# Canonical extract-and-run payload tree (paths.ini, data/, licenses/).
 # Both the ZIP and the signed update tree are built from this exact directory.
 _DEFAULT_PAYLOAD = _REPO_ROOT / "resources" / "payload"
 

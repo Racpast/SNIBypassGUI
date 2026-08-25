@@ -18,10 +18,13 @@
 #include "app/logging.h"
 
 #include <windows.h>
+
 #include <shlobj.h>
 
+#include <atomic>
 #include <cstdio>
-#include <mutex>
+#include <cwchar>
+#include <iterator>
 
 #include "app/paths.h"
 #include "app/settings.h"
@@ -29,38 +32,73 @@
 
 namespace {
 
-std::mutex   g_mutex;
-std::wstring g_logPath;
+// None of these has a destructor, and that is the point.
+//
+// An SRWLOCK is initialized by a constant, a fixed array has no lifetime of its
+// own, and std::atomic<bool> is trivially destructible. The previous version used
+// a std::mutex and a std::wstring at namespace scope, and the order in which
+// namespace-scope objects in different translation units are destroyed is
+// unspecified: a log line written after main() returned could lock a destroyed
+// mutex and hand CreateFileW a dangling pointer, which is exactly how a file whose
+// name was heap garbage turned up in the working directory.
+//
+// The specific late log line that did it is gone now — the service stack is
+// destroyed before main() returns — but a module whose correctness depends on
+// nobody ever logging late is a trap for the next change. This one has no such
+// requirement.
+SRWLOCK g_lock = SRWLOCK_INIT;
+wchar_t g_logPath[MAX_PATH * 2] = {};
+std::atomic<bool> g_enabled{false};
+
+void StoreLogPath(const std::wstring& path) {
+    AcquireSRWLockExclusive(&g_lock);
+    const size_t n =
+        (path.size() < std::size(g_logPath) - 1) ? path.size() : std::size(g_logPath) - 1;
+    std::wmemcpy(g_logPath, path.c_str(), n);
+    g_logPath[n] = L'\0';
+    ReleaseSRWLockExclusive(&g_lock);
+}
 
 }  // namespace
 
 void LogInit() {
-    std::wstring dir = ExeDir() + L"logs";
+    const std::wstring dir = ExeDir() + L"logs";
     SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
-    std::lock_guard<std::mutex> lock(g_mutex);
-    g_logPath = dir + L"\\SNIBypassGUI.log";
+    StoreLogPath(dir + L"\\snibypassgui.log");
+    g_enabled.store(LoggingEnabled(), std::memory_order_relaxed);
+}
+
+bool LogEnabled() {
+    return g_enabled.load(std::memory_order_relaxed);
+}
+
+void LogSetEnabled(bool on) {
+    SetLoggingEnabled(on);
+    g_enabled.store(on, std::memory_order_relaxed);
 }
 
 void LogLine(const std::wstring& level, const std::wstring& msg) {
-    if (!LoggingEnabled()) return;
+    if (!g_enabled.load(std::memory_order_relaxed)) return;
 
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_logPath.empty()) return;
-
-    SYSTEMTIME st;
-    GetLocalTime(&st);
+    SYSTEMTIME now;
+    GetLocalTime(&now);
     wchar_t stamp[64];
-    std::swprintf(stamp, std::size(stamp), L"%04d-%02d-%02d %02d:%02d:%02d", st.wYear,
-                  st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+    std::swprintf(stamp, std::size(stamp), L"%04d-%02d-%02d %02d:%02d:%02d", now.wYear,
+                  now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond);
 
     const std::string line =
         WideToUtf8(L"[" + std::wstring(stamp) + L"] [" + level + L"] " + msg + L"\r\n");
 
-    HANDLE h = CreateFileW(g_logPath.c_str(), FILE_APPEND_DATA,
-                           FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS,
-                           FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (h == INVALID_HANDLE_VALUE) return;
-    DWORD written = 0;
-    WriteFile(h, line.data(), static_cast<DWORD>(line.size()), &written, nullptr);
-    CloseHandle(h);
+    AcquireSRWLockExclusive(&g_lock);
+    if (g_logPath[0] != L'\0') {
+        HANDLE file =
+            CreateFileW(g_logPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                        nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (file != INVALID_HANDLE_VALUE) {
+            DWORD written = 0;
+            WriteFile(file, line.data(), static_cast<DWORD>(line.size()), &written, nullptr);
+            CloseHandle(file);
+        }
+    }
+    ReleaseSRWLockExclusive(&g_lock);
 }

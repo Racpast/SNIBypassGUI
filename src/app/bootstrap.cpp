@@ -35,20 +35,28 @@ namespace {
 
 // Fetch the signed manifest and land every payload file that is missing or differs
 // from it. This reuses the ordinary update path: on a fresh install every asset is
-// "missing" so all of them download, while the executable version matches and is
-// skipped. Shows a retry/cancel loop so a transient network error is recoverable.
-bool DownloadPayloadWithRetry() {
+// "missing" so all of them download. Shows a retry/cancel loop so a transient
+// network error is recoverable.
+PayloadStatus DownloadPayloadWithRetry() {
     for (;;) {
         LOGI(L"First run: payload missing; fetching it via the signed update channel.");
         const Update::Info info = Update::FetchManifest();
         if (info.ok) {
-            // PerformUpdate returns true only when it schedules an executable swap; a
-            // payload-only bootstrap returns false but still lands the assets, so
+            // PerformUpdate returns true when it has scheduled an executable swap,
+            // which happens here whenever the channel's version differs from ours.
+            // The helper is now waiting for this process to release its own image, so
+            // carrying on would leave it spinning against a running executable.
+            if (Update::PerformUpdate(info)) {
+                LOGI(
+                    L"First run: the fetch also scheduled an executable swap; exiting "
+                    L"so the helper can complete it.");
+                return PayloadStatus::Restarting;
+            }
+            // A payload-only bootstrap returns false but still lands the assets, so
             // success is judged by the payload being present afterwards.
-            Update::PerformUpdate(info);
             if (PayloadPresent()) {
                 LOGI(L"First run: payload downloaded and in place.");
-                return true;
+                return PayloadStatus::Ready;
             }
         }
         const std::wstring why = (!info.ok && !info.error.empty())
@@ -57,7 +65,7 @@ bool DownloadPayloadWithRetry() {
         if (MessageBoxW(nullptr, why.c_str(), APP_NAME, MB_ICONERROR | MB_RETRYCANCEL) !=
             IDRETRY) {
             LOGE(L"First run: user cancelled the payload download; cannot continue.");
-            return false;
+            return PayloadStatus::Unavailable;
         }
     }
 }
@@ -89,7 +97,8 @@ bool RunningFromArchiveTemp() {
 
     const auto underTempVar = [&exeDir](const wchar_t* variable) {
         wchar_t buf[MAX_PATH * 2] = {};
-        const DWORD n = GetEnvironmentVariableW(variable, buf, static_cast<DWORD>(std::size(buf)));
+        const DWORD n =
+            GetEnvironmentVariableW(variable, buf, static_cast<DWORD>(std::size(buf)));
         if (n == 0 || n >= std::size(buf)) return false;
         std::wstring temp = LowerW(buf);
         if (!temp.empty() && temp.back() != L'\\') temp.push_back(L'\\');
@@ -98,18 +107,11 @@ bool RunningFromArchiveTemp() {
     return underTempVar(L"TEMP") || underTempVar(L"TMP");
 }
 
-bool EnsurePayload() {
-    if (PayloadPresent()) return true;
+PayloadStatus EnsurePayload() {
+    if (PayloadPresent()) return PayloadStatus::Ready;
 
-    // Running from an archiver's scratch directory: the user launched the executable
-    // without extracting the whole archive. Refuse clearly and never touch the network.
-    if (RunningFromArchiveTemp()) {
-        LOGE(L"Running from an archive temp dir without payload; refusing to continue.");
-        MessageBoxW(nullptr, T(L"msg.extractFirst"), APP_NAME, MB_ICONERROR | MB_OK);
-        return false;
-    }
-
-    // A fixed install whose payload is gone: re-fetch it.
+    // The archive-scratch case is refused by the caller before any prompt is shown,
+    // so reaching here means a fixed install whose payload is gone: re-fetch it.
     return DownloadPayloadWithRetry();
 }
 

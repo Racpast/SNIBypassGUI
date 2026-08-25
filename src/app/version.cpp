@@ -16,8 +16,10 @@
 // See the LICENSE file in the project root for full terms and conditions.
 
 #include "app/version.h"
+
+#include <cwchar>
+
 #include "app/i18n.h"
-#include <cstring>
 
 std::wstring GetVersionDisplayStr() {
     const wchar_t* display = T(L"version.display");

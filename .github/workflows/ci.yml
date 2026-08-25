@@ -60,6 +60,40 @@ jobs:
           $bin | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           & (Join-Path $bin 'gcc.exe') --version
 
+      # ---- CI: Format gate (runs before the build, so a style failure is
+      #      reported on its own rather than buried under compiler output) ----
+      - name: Check formatting and line endings
+        shell: pwsh
+        run: |
+          $clangFormat = Get-Command clang-format -ErrorAction SilentlyContinue
+          if (-not $clangFormat) {
+              $fallback = 'C:\Program Files\LLVM\bin\clang-format.exe'
+              if (-not (Test-Path $fallback)) { throw "clang-format not found on this runner." }
+              $clangFormat = $fallback
+          }
+          & $clangFormat --version
+
+          # .clang-format-ignore is honoured by --dry-run, so generated headers
+          # are skipped here exactly as they are by an in-place run.
+          $sources = git ls-files 'src/*.cpp' 'src/*.h' 'tests/*.cpp' 'tests/*.h'
+          & $clangFormat --style=file --dry-run -Werror @sources
+          if ($LASTEXITCODE -ne 0) {
+              throw "Formatting differs from .clang-format. Run: clang-format --style=file -i <files>"
+          }
+
+          # .gitattributes normalizes line endings on commit, which means a CRLF
+          # file can only reach the repository if something bypassed that. Checking
+          # the committed bytes catches it; checking the working tree would not,
+          # since checkout has already applied eol=lf.
+          $crlf = @()
+          foreach ($file in (git ls-files --eol) -match '^i/crlf') {
+              $crlf += ($file -split '\s+')[-1]
+          }
+          if ($crlf.Count -gt 0) {
+              throw "These files are stored with CRLF; they must be LF:`n" + ($crlf -join "`n")
+          }
+          Write-Output "Formatting and line endings are clean."
+
       # ---- CI: Build + Test (always runs) ----
       - name: Configure (with tests)
         run: cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_RC_COMPILER=windres -DSNIB_BUILD_TESTS=ON

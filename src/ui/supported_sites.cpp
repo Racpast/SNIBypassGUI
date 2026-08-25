@@ -19,6 +19,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 #include "app/i18n.h"
 #include "app/logging.h"
@@ -83,7 +84,7 @@ constexpr int kMaxIncludeDepth = 8;
 
 struct Node {
     enum class Type { Text, Separator, Link, GroupBegin, GroupEnd };
-    Type         type = Type::Text;
+    Type type = Type::Text;
     std::wstring text;
     std::wstring link;
 };
@@ -168,8 +169,8 @@ std::wstring DirOf(const std::wstring& path) {
 // Full canonical path, collapsing "." and ".." and normalizing slashes.
 std::wstring CanonicalPath(const std::wstring& path) {
     wchar_t buf[MAX_PATH * 4];
-    const DWORD n = GetFullPathNameW(path.c_str(), static_cast<DWORD>(std::size(buf)), buf,
-                                     nullptr);
+    const DWORD n =
+        GetFullPathNameW(path.c_str(), static_cast<DWORD>(std::size(buf)), buf, nullptr);
     if (n == 0 || n >= std::size(buf)) return L"";
     return buf;
 }
@@ -178,8 +179,8 @@ std::wstring CanonicalPath(const std::wstring& path) {
 // drive-qualified and UNC paths could escape the data directory.
 bool IsRelativeIncludePath(const std::wstring& p) {
     if (p.empty()) return false;
-    if (p[0] == L'\\' || p[0] == L'/') return false;   // root-relative or UNC
-    if (p.size() >= 2 && p[1] == L':') return false;   // drive-qualified
+    if (p[0] == L'\\' || p[0] == L'/') return false;  // root-relative or UNC
+    if (p.size() >= 2 && p[1] == L':') return false;  // drive-qualified
     return true;
 }
 
@@ -219,12 +220,12 @@ void StampFile(const std::wstring& path, FileStamp& out) {
 }
 
 struct Cache {
-    bool                      valid = false;
-    std::wstring              path;    // canonical root path
-    std::wstring              lang;    // language the nodes were parsed for
-    std::vector<std::wstring> files;   // root plus every included file, first-seen order
-    std::vector<FileStamp>    stamps;  // one per entry in `files`
-    std::vector<Node>         nodes;
+    bool valid = false;
+    std::wstring path;                // canonical root path
+    std::wstring lang;                // language the nodes were parsed for
+    std::vector<std::wstring> files;  // root plus every included file, first-seen order
+    std::vector<FileStamp> stamps;    // one per entry in `files`
+    std::vector<Node> nodes;
 };
 
 Cache g_cache;
@@ -250,13 +251,13 @@ struct Frame {
 
 // State threaded through the (recursive, via INCLUDE) parse.
 struct ParseContext {
-    std::wstring              langCode = CurrentLangCode();
-    std::wstring              rootDir;       // confines INCLUDE targets
-    std::vector<Node>         nodes;
-    std::vector<Frame>        stack;
+    std::wstring langCode = CurrentLangCode();
+    std::wstring rootDir;  // confines INCLUDE targets
+    std::vector<Node> nodes;
+    std::vector<Frame> stack;
     std::vector<std::wstring> includeStack;  // canonical paths, for cycle detection
     std::vector<std::wstring> filesSeen;     // every file parsed, for cache stamping
-    bool                      overflow = false;
+    bool overflow = false;
 
     // Emitting only when every enclosing Cond frame is active; Group frames never
     // suppress output.
@@ -285,7 +286,8 @@ bool ParseInto(ParseContext& ctx, const std::wstring& path, int depth) {
 
     std::string raw((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     if (raw.size() >= 3 && static_cast<unsigned char>(raw[0]) == 0xEF &&
-        static_cast<unsigned char>(raw[1]) == 0xBB && static_cast<unsigned char>(raw[2]) == 0xBF)
+        static_cast<unsigned char>(raw[1]) == 0xBB &&
+        static_cast<unsigned char>(raw[2]) == 0xBF)
         raw.erase(0, 3);
 
     const std::wstring dir = DirOf(path);
@@ -461,7 +463,8 @@ bool ParseInto(ParseContext& ctx, const std::wstring& path, int depth) {
 
 // Parse the root file and everything it includes. `filesSeen` receives every file
 // that participated, in first-seen order, so the caller can stamp them.
-std::vector<Node> ParseTree(const std::wstring& rootPath, std::vector<std::wstring>& filesSeen) {
+std::vector<Node> ParseTree(const std::wstring& rootPath,
+                            std::vector<std::wstring>& filesSeen) {
     ParseContext ctx;
     ctx.rootDir = DirOf(rootPath);
     ctx.includeStack.push_back(rootPath);
@@ -477,8 +480,8 @@ std::vector<Node> ParseTree(const std::wstring& rootPath, std::vector<std::wstri
         size_t groups = 0;
         size_t conds = 0;
         for (const Frame& f : ctx.stack) (f.kind == Frame::Kind::Group ? groups : conds)++;
-        LOGW(L"Supported sites: unclosed block(s) at end of input (" +
-             std::to_wstring(groups) + L" GROUP, " + std::to_wstring(conds) + L" IF).");
+        LOGW(L"Supported sites: unclosed block(s) at end of input (" + std::to_wstring(groups) +
+             L" GROUP, " + std::to_wstring(conds) + L" IF).");
     }
     while (!ctx.stack.empty() && !ctx.overflow) {
         const Frame& f = ctx.stack.back();
@@ -541,12 +544,12 @@ std::vector<std::wstring> PopulateMenu(HMENU menu, UINT baseCmdId) {
     // it is empty and should be grayed. Every created submenu is always attached, so
     // destroying the root frees the whole tree.
     struct OpenGroup {
-        HMENU        menu;
+        HMENU menu;
         std::wstring title;
     };
-    std::vector<HMENU>     stack{menu};
+    std::vector<HMENU> stack{menu};
     std::vector<OpenGroup> open;
-    int  inlinedDepth = 0;  // groups beyond kMaxGroupDepth render inline
+    int inlinedDepth = 0;  // groups beyond kMaxGroupDepth render inline
     bool truncated = false;
 
     const auto attachGroup = [&stack](const OpenGroup& group) {
@@ -560,12 +563,11 @@ std::vector<std::wstring> PopulateMenu(HMENU menu, UINT baseCmdId) {
         HMENU target = stack.back();
 
         switch (node.type) {
-            case Node::Type::Separator:
-                AppendMenuW(target, MF_SEPARATOR, 0, nullptr);
-                break;
+            case Node::Type::Separator: AppendMenuW(target, MF_SEPARATOR, 0, nullptr); break;
 
             case Node::Type::Text:
-                AppendMenuW(target, MF_STRING | MF_GRAYED, 0, EscapeMenuText(node.text).c_str());
+                AppendMenuW(target, MF_STRING | MF_GRAYED, 0,
+                            EscapeMenuText(node.text).c_str());
                 break;
 
             case Node::Type::Link:

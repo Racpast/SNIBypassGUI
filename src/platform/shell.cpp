@@ -18,6 +18,7 @@
 #include "platform/shell.h"
 
 #include <windows.h>
+
 #include <shellapi.h>
 
 #include <cstring>

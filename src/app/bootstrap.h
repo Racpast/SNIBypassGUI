@@ -19,7 +19,7 @@
 
 // First-run checks that must pass before the tray appears.
 //
-// The extract-and-run payload (paths.ini, data/, WinDivert.dll and .sys) is not
+// The extract-and-run payload (paths.ini and data/) is not
 // embedded in the executable; it ships beside it in the archive and is
 // delivered/updated through the signed manifest. So the executable must cope with
 // the payload being absent in three distinct situations:
@@ -40,9 +40,20 @@ bool PayloadPresent();
 // a fixed install folder.
 bool RunningFromArchiveTemp();
 
+enum class PayloadStatus {
+    Ready,        // the payload is in place; carry on
+    Restarting,   // the fetch also brought a new executable and a swap is pending,
+                  // so this process must exit and let the helper do it
+    Unavailable,  // it could not be obtained; the user has already been told why
+};
+
 // Ensure the payload is available. Runs after elevation and, for the download path,
-// after the agreement is accepted. Returns false if the program cannot proceed.
-bool EnsurePayload();
+// after the agreement is accepted.
+//
+// The caller is responsible for having already refused the archive-scratch case
+// (see RunningFromArchiveTemp): that has to happen before any prompt, and doing it
+// once, early, is what keeps this function purely about obtaining the payload.
+PayloadStatus EnsurePayload();
 
 // Reconcile the desktop shortcut with the stored preference, prompting on a first
 // run that has never been asked.

@@ -18,6 +18,7 @@
 #include "update/crypto.h"
 
 #include <windows.h>
+
 #include <bcrypt.h>
 
 #include <cstring>
@@ -70,7 +71,8 @@ void Sha256::Add(const void* data, size_t n) {
 bool Sha256::Digest(std::vector<uint8_t>& out) {
     if (!hash_) return false;
     out.assign(length_, 0);
-    return BCryptFinishHash(static_cast<BCRYPT_HASH_HANDLE>(hash_), out.data(), length_, 0) == 0;
+    return BCryptFinishHash(static_cast<BCRYPT_HASH_HANDLE>(hash_), out.data(), length_, 0) ==
+           0;
 }
 
 std::wstring Sha256::Hex() {
@@ -143,17 +145,17 @@ bool VerifySignature(const std::string& message, const std::vector<uint8_t>& sig
     }
 
     BCRYPT_KEY_HANDLE key = nullptr;
-    NTSTATUS status = BCryptImportKeyPair(alg, nullptr, BCRYPT_ECCPUBLIC_BLOB, &key, blob.data(),
-                                         static_cast<ULONG>(blob.size()), 0);
+    NTSTATUS status = BCryptImportKeyPair(alg, nullptr, BCRYPT_ECCPUBLIC_BLOB, &key,
+                                          blob.data(), static_cast<ULONG>(blob.size()), 0);
     if (status != 0) {
         BCryptCloseAlgorithmProvider(alg, 0);
         LOGE(L"Update: cannot import the update public key.");
         return false;
     }
 
-    status = BCryptVerifySignature(key, nullptr, digest.data(), static_cast<ULONG>(digest.size()),
-                                   const_cast<PUCHAR>(signature.data()),
-                                   static_cast<ULONG>(signature.size()), 0);
+    status = BCryptVerifySignature(
+        key, nullptr, digest.data(), static_cast<ULONG>(digest.size()),
+        const_cast<PUCHAR>(signature.data()), static_cast<ULONG>(signature.size()), 0);
     BCryptDestroyKey(key);
     BCryptCloseAlgorithmProvider(alg, 0);
     return status == 0;
