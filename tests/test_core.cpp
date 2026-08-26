@@ -28,6 +28,7 @@
 #include "app/filesystem.h"
 #include "app/version.h"
 #include "dns/message.h"
+#include "dns/redirector.h"
 #include "dns/rules.h"
 #include "update/client.h"
 #include "update/json.h"
@@ -545,6 +546,42 @@ void TestJson() {
     CHECK(!Json::Parse("[1,2", root));
 }
 
+// The rule-repair rate limit that decides when restoring the DNS policy rule has
+// stopped being a repair and become a fight nobody wins. It is the only piece of the
+// redirector's guardian that is a decision rather than a system call, so it is the
+// piece that can be reasoned about here rather than only observed on a machine.
+void TestRepairBudget() {
+    using Dns::RepairBudget;
+    const uint64_t kWindow = RepairBudget::kWindowMs;
+    const unsigned kMax = RepairBudget::kMaxRepairs;
+
+    // Exactly the budget is allowed; the one past it is not.
+    RepairBudget budget;
+    for (unsigned i = 0; i < kMax; ++i) CHECK(budget.Allow(1000));
+    CHECK(!budget.Allow(1000));
+
+    // Still refused later in the same window, right up to its last millisecond.
+    CHECK(!budget.Allow(1000 + kWindow - 1));
+
+    // A window that has elapsed starts a fresh count: one deletion an hour is a thing
+    // to repair forever, not a fight.
+    CHECK(budget.Allow(1000 + kWindow));
+    for (unsigned i = 1; i < kMax; ++i) CHECK(budget.Allow(1000 + kWindow));
+    CHECK(!budget.Allow(1000 + kWindow));
+
+    // The window is measured from the first repair in it, not from a fixed epoch, so
+    // a budget first used far from zero behaves the same way.
+    RepairBudget late;
+    const uint64_t start = 5 * kWindow + 7;
+    for (unsigned i = 0; i < kMax; ++i) CHECK(late.Allow(start));
+    CHECK(!late.Allow(start + kWindow - 1));
+    CHECK(late.Allow(start + kWindow));
+
+    // Repairs spread thinly never exhaust it, however many there are in total.
+    RepairBudget sparse;
+    for (unsigned i = 0; i < kMax * 4; ++i) CHECK(sparse.Allow(i * kWindow));
+}
+
 }  // namespace
 
 int main() {
@@ -563,6 +600,7 @@ int main() {
     TestFileSystemSafety();
     TestGlobMatching();
     TestJson();
+    TestRepairBudget();
 
     if (g_failures) {
         std::printf("%d check(s) failed\n", g_failures);

@@ -135,6 +135,56 @@ bool SetDword(HKEY key, const wchar_t* name, DWORD value) {
                           sizeof(value)) == ERROR_SUCCESS;
 }
 
+// ---- Reading the rule back ---------------------------------------------------
+//
+// Each of these answers "is this value present, of this type, and exactly this?" —
+// never "close enough". A rule that differs from what we would write is a rule that
+// routes somewhere else or covers a different set of names, and both are wrong in
+// the way this program exists to prevent.
+
+bool DwordEquals(HKEY key, const wchar_t* name, DWORD expected) {
+    DWORD value = 0;
+    DWORD size = sizeof(value);
+    DWORD type = 0;
+    if (RegQueryValueExW(key, name, nullptr, &type, reinterpret_cast<BYTE*>(&value), &size) !=
+        ERROR_SUCCESS)
+        return false;
+    return type == REG_DWORD && size == sizeof(value) && value == expected;
+}
+
+// Read a string-shaped value as the exact character block stored, terminators
+// included. Both REG_SZ and REG_MULTI_SZ are compared this way, so the comparison
+// is over the same bytes the writer produced rather than over a re-parse of them.
+bool ReadBlock(HKEY key, const wchar_t* name, DWORD wantType, std::wstring& out) {
+    DWORD bytes = 0;
+    DWORD type = 0;
+    if (RegQueryValueExW(key, name, nullptr, &type, nullptr, &bytes) != ERROR_SUCCESS)
+        return false;
+    if (type != wantType || bytes % sizeof(wchar_t) != 0) return false;
+
+    out.assign(bytes / sizeof(wchar_t), L'\0');
+    if (out.empty()) return true;
+    if (RegQueryValueExW(key, name, nullptr, &type, reinterpret_cast<BYTE*>(out.data()),
+                         &bytes) != ERROR_SUCCESS)
+        return false;
+    return true;
+}
+
+// A REG_SZ holding exactly `expected`. The stored block is the characters plus the
+// one terminating null the type implies, and a value written by something else may
+// carry a different number of them — so the comparison is against what SetSz writes.
+bool SzEquals(HKEY key, const wchar_t* name, const std::wstring& expected) {
+    std::wstring stored;
+    if (!ReadBlock(key, name, REG_SZ, stored)) return false;
+    return stored == expected + std::wstring(1, L'\0');
+}
+
+bool MultiSzEquals(HKEY key, const wchar_t* name, const std::wstring& expectedBlock) {
+    std::wstring stored;
+    if (!ReadBlock(key, name, REG_MULTI_SZ, stored)) return false;
+    return stored == expectedBlock;
+}
+
 }  // namespace
 
 bool InstallRule(const std::vector<std::string>& namespaces, const std::wstring& dnsServer) {
@@ -190,6 +240,92 @@ bool RemoveRule() {
     NotifyDnsCache();
     LOGI(L"NRPT: rule removed.");
     return true;
+}
+
+bool RuleMatches(const std::vector<std::string>& namespaces, const std::wstring& dnsServer) {
+    // Nothing to route means the rule should not be there at all, so its absence is
+    // the match and its presence is not.
+    HKEY key = nullptr;
+    const LSTATUS status =
+        RegOpenKeyExW(HKEY_LOCAL_MACHINE, FullRulePath().c_str(), 0, KEY_QUERY_VALUE, &key);
+    if (status != ERROR_SUCCESS) return namespaces.empty();
+    if (namespaces.empty()) {
+        RegCloseKey(key);
+        return false;
+    }
+
+    const bool same = DwordEquals(key, L"Version", kRuleVersion) &&
+                      MultiSzEquals(key, L"Name", PackMultiSz(namespaces)) &&
+                      SzEquals(key, L"GenericDNSServers", dnsServer) &&
+                      DwordEquals(key, L"ConfigOptions", kConfigGenericDnsServers) &&
+                      SzEquals(key, L"Comment", kComment);
+    RegCloseKey(key);
+    return same;
+}
+
+// ---- RuleWatch ---------------------------------------------------------------
+
+RuleWatch::~RuleWatch() {
+    if (m_key) RegCloseKey(m_key);
+    if (m_event) CloseHandle(m_event);
+}
+
+bool RuleWatch::Arm() {
+    // The subscription is one-shot, so nothing can signal this event between the
+    // notification just consumed and this call — the reset cannot drop anything.
+    // Manual-reset all the same, so that a signal arriving while the caller is busy
+    // elsewhere is still there when it returns to the wait.
+    ResetEvent(m_event);
+    const LSTATUS status = RegNotifyChangeKeyValue(
+        m_key, TRUE, REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET, m_event, TRUE);
+    if (status == ERROR_SUCCESS) return true;
+    LOGW(L"NRPT: cannot subscribe to policy-table changes (err " + std::to_wstring(status) +
+         L").");
+    return false;
+}
+
+bool RuleWatch::Open() {
+    // Created once and kept: Rearm may come back through here to replace a key that
+    // was deleted underneath us, and a waiter that has this handle in a wait array
+    // must not have it swapped out from under the wait.
+    if (!m_event) {
+        m_event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        if (!m_event) {
+            LOGW(L"NRPT: cannot create the policy-table watch event (err " +
+                 std::to_wstring(GetLastError()) + L").");
+            return false;
+        }
+    }
+    if (m_key) {
+        RegCloseKey(m_key);
+        m_key = nullptr;
+    }
+
+    // Created rather than merely opened: a machine that has never held an NRPT rule
+    // has no policy table to subscribe to, and the key we would be told about is the
+    // one we are about to write. Creating it is what makes the watch work from the
+    // first start rather than from the second.
+    const LSTATUS status =
+        RegCreateKeyExW(HKEY_LOCAL_MACHINE, kPolicyKey, 0, nullptr, REG_OPTION_NON_VOLATILE,
+                        KEY_NOTIFY, nullptr, &m_key, nullptr);
+    if (status != ERROR_SUCCESS) {
+        LOGW(L"NRPT: cannot open the policy table for watching (err " +
+             std::to_wstring(status) + L").");
+        m_key = nullptr;
+        return false;
+    }
+    return Arm();
+}
+
+bool RuleWatch::Rearm() {
+    if (!m_key || !m_event) return false;
+    if (Arm()) return true;
+
+    // Deleting the policy table itself invalidates this key, and every later
+    // subscription on it fails. Reopening is the whole recovery — it creates the
+    // table again and subscribes to the new one.
+    LOGW(L"NRPT: the policy table went away; reopening the watch.");
+    return Open();
 }
 
 // ---- The service that enforces all of the above ------------------------------

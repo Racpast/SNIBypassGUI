@@ -16,9 +16,32 @@
 # are fine: just prepend a second entry on top for the second push. The only
 # rule is one prepend per push.
 #
-# Block scalars (`|`) preserve line breaks; write one bullet per line.
+# Block scalars (`|`) preserve line breaks; write one bullet per line, each
+# starting with "• " (U+2022 and a space).
+#
+# That marker is not a style preference: this text is injected verbatim into the
+# signed manifest and shown by the client in a message box, which renders no
+# Markdown — so "- " would be a hyphen standing in for a bullet, not a list. The
+# GitHub Release body is built separately (release_preamble.md plus a git log)
+# and never reads this file, so nothing here needs to be Markdown.
+#
+# Entries below 5.1.2 keep the "- " they were published with; they are a record
+# of what shipped, not a template.
 
 # --- newest first; CI reads the topmost entry ---
+
+- version: "5.1.2"
+  date: "2026-08-27"
+  en: |
+    • Component processes are now continuously supervised throughout their lifecycle. If any component terminates unexpectedly, all remaining components and DNS redirection are halted immediately to prevent silent connection failures across supported sites. Supervision of DNS redirection covers both its local DNS service and DNS policy rules: missing rules are automatically restored, and if they cannot be maintained, all components are stopped with an explicit reason provided.
+    • Removed fixed delays from the startup sequence. Components are considered ready as soon as their processes are created, significantly reducing service startup time.
+    • Refactored failure diagnostics to explicitly identify the affected component and its probable cause.
+    • Fixed the log folder being created even with logging turned off, and no longer being re-created after a cache cleanup, which silently stopped logging until the program was restarted.
+  zh-CN: |
+    • 组件进程现全程受到监控。任一组件异常退出时，将自动终止其余组件及 DNS 重定向，避免受支持站点在无感知的情况下静默失效。其中，DNS 重定向的监控覆盖本地 DNS 服务及 DNS 策略规则两个组成部分。规则丢失时将自动恢复；若无法维持，则终止全部组件并明确告知原因。
+    • 移除启动流程中的固定等待延迟。组件进程创建成功即视为就绪，显著缩短服务启动耗时。
+    • 重构故障诊断与提示信息，明确标注具体异常组件及其可能原因。
+    • 修复未开启日志记录时仍会创建日志文件夹，以及清理缓存后日志文件夹不再重建、导致日志静默失效直至重启程序的问题。
 
 - version: "5.1.1"
   date: "2026-08-26"

@@ -40,6 +40,8 @@
 // delete a rule the user or their administrator put there. That is what makes
 // crash recovery safe — the next start deletes precisely what a previous run could
 // have left behind.
+#include <windows.h>
+
 #include <string>
 #include <vector>
 
@@ -55,6 +57,75 @@ bool InstallRule(const std::vector<std::string>& namespaces, const std::wstring&
 // Remove the rule. Returns true if one was there to remove — which, at startup,
 // is exactly the signal that a previous run did not shut down cleanly.
 bool RemoveRule();
+
+// Does the table currently say exactly what InstallRule(namespaces, dnsServer)
+// would make it say?
+//
+// This is what turns "something under the policy table changed" into a decision,
+// and it is a comparison rather than an unconditional rewrite for one reason: our
+// own write is itself a change to that table. A watcher that reinstalled on every
+// notification would notify itself, forever. Reading first converges instead — the
+// repair fires a notification, the notification finds the rule already correct, and
+// there it stops.
+//
+// An empty `namespaces` describes a machine with nothing to route, so the state it
+// asks about is the rule being absent.
+bool RuleMatches(const std::vector<std::string>& namespaces, const std::wstring& dnsServer);
+
+// A standing subscription to the policy table.
+//
+// The rule is the half of DNS redirection that this program does not hold open: it
+// is a registry key, and anything with administrator rights can delete it —
+// Remove-DnsClientNrptRule, a Group Policy refresh, a network reset, a registry
+// cleaner. When that happens redirection silently stops, and without this nothing
+// would notice until someone asked.
+//
+// The kernel offers the exact event, so no interval has to be invented: the handle
+// below is signalled when anything under the policy table changes. It costs nothing
+// until then.
+//
+// THREAD AFFINITY. RegNotifyChangeKeyValue ties the subscription to the thread that
+// registers it, and signals the event if that thread exits. REG_NOTIFY_THREAD_AGNOSTIC
+// lifts that, but it is Windows 8 and this program targets _WIN32_WINNT=0x0601. So
+// Open(), every Rearm() and the wait itself must all run on one thread, and that
+// thread must outlive the watch. Redirector's guardian is built to be that thread.
+//
+// The subscription is one-shot: after the event signals, Rearm() asks for the next
+// one. Rearm BEFORE reading the table, never after — a subscription taken first
+// covers every change from that moment on, so a deletion that lands while the rule
+// is being read still wakes the next wait. The other order has a gap exactly the
+// width of the read, and what falls into it is never noticed at all.
+class RuleWatch {
+public:
+    RuleWatch() = default;
+    ~RuleWatch();
+    RuleWatch(const RuleWatch&) = delete;
+    RuleWatch& operator=(const RuleWatch&) = delete;
+
+    // Open the policy table — creating it if this machine has never held a rule —
+    // and arm the first notification. False means the machine cannot be watched;
+    // the reason is already in the log.
+    bool Open();
+
+    // Ask for the next notification, after the event has signalled. If the table was
+    // deleted outright — which invalidates the open key and makes every later
+    // subscription on it fail — it is reopened and the subscription taken on the new
+    // one.
+    bool Rearm();
+
+    // Signalled when the policy table has changed. Null until a successful Open().
+    //
+    // The same handle for this object's whole life: a reopen inside Rearm() replaces
+    // the key, never the event. A waiter can therefore put this in a wait array once
+    // and keep it there.
+    HANDLE handle() const { return m_event; }
+
+private:
+    bool Arm();
+
+    HKEY m_key = nullptr;
+    HANDLE m_event = nullptr;
+};
 
 // ---- The service that enforces all of the above ------------------------------
 //

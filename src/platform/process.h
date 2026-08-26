@@ -127,6 +127,15 @@ public:
     bool WaitForExit(DWORD timeoutMs) const { return process_.WaitForExit(timeoutMs); }
     bool ExitCode(DWORD& code) const { return process_.ExitCode(code); }
 
+    // The process handle, for the one question the methods above cannot answer:
+    // "whichever of these children dies first" needs every handle in a single wait.
+    //
+    // Ownership does not travel with it. The handle stays owned by this Child, is
+    // valid only while this Child is alive and has not been moved from, and may be
+    // waited on and nothing else — never closed, never duplicated into a longer life
+    // than the Child's.
+    HANDLE waitHandle() const { return process_.get(); }
+
     // Terminate the process and every descendant, then wait until the process is
     // actually gone. Returns true if that is confirmed. Calling it on an empty or
     // already-exited Child succeeds without doing anything.

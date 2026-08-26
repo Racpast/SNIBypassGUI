@@ -21,9 +21,15 @@
 
 #include <wincrypt.h>
 
+#include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <cwchar>
+#include <functional>
 #include <mutex>
+#include <optional>
+#include <system_error>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -43,6 +49,231 @@
 
 namespace Services {
 
+namespace {
+
+// The three things that have to be up for this program to do anything.
+//
+// Named as one type because the stack does not distinguish between them: any one of
+// them going down takes the other two with it, and for the same reason in each case
+// — what is left is not a reduced service, it is a machine whose DNS points at
+// something that cannot answer. The two children happen to be processes and DNS
+// redirection happens to be a thread and a registry key, but that is an
+// implementation detail of each, not a difference in how the stack treats them.
+enum class Component { Nginx, SniGate, DnsRedirection };
+
+// For the log: stable, ASCII, and the name the thing calls itself.
+const wchar_t* ComponentLogName(Component c) {
+    switch (c) {
+        case Component::Nginx: return L"nginx";
+        case Component::SniGate: return L"sni-gate";
+        case Component::DnsRedirection: return L"DNS redirection";
+    }
+    return L"";
+}
+
+// For anything a person reads: the same key the tray labels the component with, so
+// a dialog about a component and the menu entry for it cannot drift apart, and a
+// Chinese dialog does not suddenly contain an untranslated English noun.
+const wchar_t* ComponentNameKey(Component c) {
+    switch (c) {
+        case Component::Nginx: return L"status.nginx";
+        case Component::SniGate: return L"status.route";
+        case Component::DnsRedirection: return L"status.dns";
+    }
+    return L"";
+}
+
+// Watches the running stack for a component going down without being asked to.
+//
+// Coming up is not a promise about the next second. A child can be killed from Task
+// Manager, shot by security software minutes in, or hit a fatal condition of its own
+// long after it started healthy; the local DNS server's loop can end on a failed
+// select; the policy rule can be deleted by something else on the machine. Until
+// something notices, the stack stays "started" with the DNS policy rule installed,
+// so every redirected name resolves to a loopback address with nothing behind it.
+// Every supported site breaks at once and the program does not say a word.
+//
+// The wait is on kernel objects — the children's process handles, and one event that
+// DNS redirection signals when it has stopped in a way it could not repair — so a
+// component going down is observed the instant it happens, thirty milliseconds in or
+// thirty minutes in, indistinguishably, and costs nothing at all until it does. That
+// is the point: any interval here would be a guess about how long a service is
+// allowed to take, and a guess is precisely what this exists to avoid.
+//
+// A component that is already down by the time the wait is set up signals
+// immediately, so this covers a failure during the start exactly as it covers one
+// hours later. There is no separate startup check, and no window in which one goes
+// unnoticed.
+//
+// Arm and Disarm are not thread-safe against each other and do not need to be: every
+// caller holds Runtime::State's operation mutex, or is that state's own destruction,
+// which happens once every such call has returned.
+class StackSupervisor {
+public:
+    ~StackSupervisor() { Disarm(); }
+
+    StackSupervisor() = default;
+    StackSupervisor(const StackSupervisor&) = delete;
+    StackSupervisor& operator=(const StackSupervisor&) = delete;
+
+    // One component, and the handle that is signalled when it is no longer running.
+    struct Watched {
+        Component component;
+        HANDLE signal;
+    };
+
+    // Watch each entry until one of them signals or Disarm is called, then call
+    // `onDown` with the component it belonged to.
+    //
+    // The handles must outlive the armed supervisor. Every caller satisfies that by
+    // construction — arming happens with the stack up, and the only two paths that
+    // tear it down, a stop and the state's own destruction, both disarm first, and
+    // Disarm does not return until this has stopped waiting on them.
+    void Arm(std::vector<Watched> watched, std::function<void(Component)> onDown);
+
+    // Stop watching, and return only once nothing is waiting on the handles any
+    // more. Idempotent, and safe to call from the teardown that a signal triggered —
+    // see Run for why that is not a thread waiting on itself.
+    void Disarm();
+
+private:
+    void Run();
+
+    // Manual-reset, both: once either fact is true it stays true, so no interleaving
+    // of the threads can miss it.
+    HANDLE m_cancel = nullptr;    // "stop watching"
+    HANDLE m_finished = nullptr;  // "no longer waiting on anything, and no member of
+                                  //  this object will be touched again"
+    bool m_armed = false;
+    std::vector<Watched> m_watched;
+    std::function<void(Component)> m_onDown;
+};
+
+void StackSupervisor::Arm(std::vector<Watched> watched, std::function<void(Component)> onDown) {
+    Disarm();
+
+    // A component with no handle to wait on is one whose event could not be created,
+    // and the reason is already in its own log line. Dropping it here is what keeps
+    // that from costing the others their supervision too: a null in the array fails
+    // the whole WaitForMultipleObjects, so one component that cannot be watched would
+    // otherwise mean none of them are.
+    watched.erase(std::remove_if(watched.begin(), watched.end(),
+                                 [](const Watched& w) {
+                                     if (w.signal) return false;
+                                     LOGE(std::wstring(ComponentLogName(w.component)) +
+                                          L" cannot be watched; if it stops on its own "
+                                          L"it will go unnoticed.");
+                                     return true;
+                                 }),
+                  watched.end());
+    if (watched.empty() || !onDown) return;
+
+    m_cancel = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    m_finished = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (!m_cancel || !m_finished) {
+        LOGE(L"Could not create the supervisor's events (err " +
+             std::to_wstring(GetLastError()) +
+             L"); a service that stops on its own will go unnoticed.");
+        if (m_cancel) CloseHandle(m_cancel);
+        if (m_finished) CloseHandle(m_finished);
+        m_cancel = nullptr;
+        m_finished = nullptr;
+        return;
+    }
+
+    m_watched = std::move(watched);
+    m_onDown = std::move(onDown);
+
+    // The only thread this supervisor ever creates, and it is created here rather
+    // than when a component goes down. That is deliberate: the reaction to a failure
+    // must not itself need a thread, because the moment it would need one is the
+    // moment the machine is least able to provide one — and a std::system_error
+    // thrown inside a thread function is an unhandled exception, which is a process
+    // killed with the policy rule still installed and every listed name pointing at
+    // it. Here it is an ordinary failure, with a caller to report it to.
+    try {
+        std::thread(&StackSupervisor::Run, this).detach();
+    } catch (const std::system_error& e) {
+        LOGE(L"Could not create the supervisor thread (" + Utf8ToWide(e.what()) +
+             L"); a service that stops on its own will go unnoticed.");
+        CloseHandle(m_cancel);
+        CloseHandle(m_finished);
+        m_cancel = nullptr;
+        m_finished = nullptr;
+        m_watched.clear();
+        m_onDown = nullptr;
+        return;
+    }
+    m_armed = true;
+}
+
+void StackSupervisor::Run() {
+    // Cancellation goes first so its index is known without arithmetic.
+    std::vector<HANDLE> waits;
+    waits.reserve(m_watched.size() + 1);
+    waits.push_back(m_cancel);
+    for (const Watched& w : m_watched) waits.push_back(w.signal);
+
+    const DWORD result =
+        WaitForMultipleObjects(static_cast<DWORD>(waits.size()), waits.data(), FALSE, INFINITE);
+    const DWORD index = result - WAIT_OBJECT_0;
+
+    // What to do, decided while the members are still ours to read. The handler is
+    // MOVED out rather than copied, and that is what makes the Disarm inside it safe:
+    // it leaves the member empty, so clearing the member cannot destroy the callable
+    // this thread is in the middle of executing.
+    std::optional<Component> down;
+    std::function<void(Component)> reaction;
+    if (result != WAIT_OBJECT_0) {
+        if (index >= waits.size()) {
+            // Anything outside the signalled range — WAIT_FAILED on a handle that
+            // went bad, an abandoned wait — means this supervisor has stopped
+            // supervising. Say so rather than returning quietly: a watchdog that died
+            // is worth more in the log than a silence that looks like health.
+            LOGE(L"The service supervisor stopped waiting unexpectedly (err " +
+                 std::to_wstring(GetLastError()) +
+                 L"); a service that stops on its own will go unnoticed until the "
+                 L"next start.");
+        } else {
+            down = m_watched[index - 1].component;
+            reaction = std::move(m_onDown);
+        }
+    }
+
+    // Published before the reaction runs, and this is the whole reason the reaction
+    // can run here rather than on a thread of its own.
+    //
+    // The reaction takes the stack down, and that teardown disarms this supervisor.
+    // If Disarm meant "join this thread", that would be this thread joining itself,
+    // and the only escape would be to create another thread on the failure path —
+    // exactly where a machine is least able to give one. So Disarm waits for this
+    // event instead, and this event states the one thing Disarm actually needs: that
+    // nothing is waiting on the watched handles any more and no member of this object
+    // will be touched again.
+    //
+    // Everything after this line is a local or a string with static storage, so the
+    // supervisor may be destroyed while the reaction is still running — including
+    // while it is blocked on a message box in front of a person, which is why the
+    // reaction must not be something anyone waits for.
+    SetEvent(m_finished);
+    if (down) reaction(*down);
+}
+
+void StackSupervisor::Disarm() {
+    if (!m_armed) return;
+    SetEvent(m_cancel);
+    WaitForSingleObject(m_finished, INFINITE);
+    CloseHandle(m_cancel);
+    CloseHandle(m_finished);
+    m_cancel = nullptr;
+    m_finished = nullptr;
+    m_watched.clear();
+    m_onDown = nullptr;  // already empty when a reaction is under way
+    m_armed = false;
+}
+
+}  // namespace
+
 struct Runtime::State {
     // Set once the Runtime has begun tearing down.
     //
@@ -57,6 +288,26 @@ struct Runtime::State {
     // process launches and DNS redirection state against each other.
     std::mutex operationMutex;
 
+    // Which incarnation of the stack is currently up.
+    //
+    // A component going down is reported on a thread of its own, which then queues
+    // behind this mutex — and by the time it gets in, the stack it was watching may
+    // no longer be the stack that is running. CleanCache stops, deletes and starts
+    // inside one hold of the mutex, so a component that went down a moment before it
+    // began produces a report that arrives to find a brand new, healthy stack; acting
+    // on it would tear that stack down and show the user an error about a service
+    // that is running perfectly well.
+    //
+    // "Is anything running" cannot answer this — it is a different question, and it
+    // happens to give the right answer only when nothing was restarted in between.
+    // The question actually being asked is "is the stack I was watching still the
+    // stack that is up", and a counter bumped by every arm and every stop answers
+    // exactly that, whatever the timing.
+    //
+    // Read and written only under operationMutex, which is also the only place the
+    // stack changes incarnation.
+    uint64_t generation = 0;
+
     // Guards the two child slots on their own, so the tray can ask what is running
     // without waiting behind a start that is still bringing the stack up.
     // Always taken after operationMutex when both are held.
@@ -68,6 +319,17 @@ struct Runtime::State {
     // DNS server, which answers the redirected names with loopback and forwards
     // everything else to the machine's real resolvers.
     Dns::Redirector redirector;
+
+    // Watches every component for going down without this program asking.
+    //
+    // Declared last deliberately: members are destroyed in reverse order, so this one
+    // is torn down — its wait cancelled and confirmed ended — while the children and
+    // the redirector whose handles it is waiting on are still alive. Reversed, the
+    // wait would outlive the handles it waits on for as long as the disarm takes.
+    //
+    // Armed and disarmed only under operationMutex, or from this state's own
+    // destruction, which happens after every call holding that mutex has returned.
+    StackSupervisor supervisor;
 };
 
 namespace {
@@ -100,39 +362,7 @@ std::wstring DirOf(const std::wstring& exe) {
     return (slash == std::wstring::npos) ? ExeDir() : exe.substr(0, slash + 1);
 }
 
-// ---- Child descriptions ------------------------------------------------------
-
-// A child counts as started once it is running.
-//
-// This used to wait for its listening socket to appear instead, on the reasoning
-// that the listener is the fact the rest of the stack depends on. It is — but it is
-// not a fact with a bound on when it arrives. A cold start off a slow disk, an
-// antivirus scanning the image, a machine still busy right after logon: any of them
-// can push the bind past a deadline that no value would make safe, and the wait then
-// terminated a service that was seconds from being ready and reported a failure that
-// had not happened. Liveness is the property this program can actually observe about
-// a child it owns, through the kernel handle, and it never says "broken" about
-// something that merely started slowly.
-//
-// What that gives up is the child that lives but never binds. What it keeps is the
-// failure that actually occurs — a child that cannot read its configuration, or is
-// blocked by security software, exits within milliseconds — and the settling window
-// below is there to catch exactly that.
-struct ChildSpec {
-    const wchar_t* name;
-};
-
-constexpr ChildSpec kNginx{L"nginx"};
-constexpr ChildSpec kSniGate{L"sni-gate"};
-
-// How long a freshly launched child is watched before it counts as started.
-//
-// A deadline, not a delay: the wait is on the process handle and returns the instant
-// the child dies, so a broken start is reported at once and only a healthy one pays
-// the window in full. Long enough for a fatal misconfiguration to surface — those
-// exits happen in tens of milliseconds — and short enough not to be felt on a start
-// the user asked for.
-constexpr DWORD kStartupSettleMs = 500;
+// ---- Timing constants --------------------------------------------------------
 
 // How long to wait for a stopped service's port to disappear from the TCP table.
 constexpr DWORD kPortReleaseTimeoutMs = 5000;
@@ -140,8 +370,6 @@ constexpr DWORD kPortReleaseTimeoutMs = 5000;
 // How often the TCP table is re-read while waiting for a port to be released. There
 // is no kernel event for "a socket closed", so this poll cannot be avoided.
 constexpr DWORD kPortPollMs = 50;
-
-enum class StartFailure { None, Launch, Exited };
 
 // Wait for our service ports to leave the TCP table.
 //
@@ -230,20 +458,34 @@ bool ChildRunning(const std::shared_ptr<Runtime::State>& state,
     return !Process::FindByImagePath(exe).empty();
 }
 
-// Whether any part of the stack this Runtime owns is still up. Only about what we
-// launched: a copy started by hand is not something a teardown of this object is
-// responsible for, and Stop reaches those separately.
+// Whether any part of the stack this Runtime owns still has to be taken back. Only
+// about what we launched: a copy started by hand is not something a teardown of this
+// object is responsible for, and Stop reaches those separately.
+//
+// The question is what a Stop would have work to do about, NOT what is healthy — a
+// component that has failed still holds a thread, a socket or a registry key, and
+// answering with its health would walk past exactly the state that most needs
+// clearing up.
 bool AnythingRunning(Runtime::State& state) {
-    if (state.redirector.Running()) return true;
+    if (state.redirector.Active()) return true;
     std::lock_guard<std::mutex> lock(state.childMutex);
     return static_cast<bool>(state.nginx) || static_cast<bool>(state.sniGate);
 }
 
 // ---- Start / stop, assuming operationMutex is held ---------------------------
 
-StartFailure StartChild(Runtime::State& state, Process::Child Runtime::State::* slot,
-                        const ChildSpec& spec, const std::wstring& exe) {
-    LOGI(L"Starting " + std::wstring(spec.name) + L": " + exe);
+// Launch one child into its slot. False means the launch itself failed — the process
+// was never created, and the reason is already in the log.
+//
+// Nothing is waited for and nothing is checked afterwards. A child that starts slowly
+// is not a child that failed, and there is no window short enough to tell those apart
+// or long enough to be sure. Whether the children are still there is not asked at a
+// moment of this code's choosing at all; it is watched continuously, by the
+// supervisor, from the end of the start until the next stop.
+bool StartChild(Runtime::State& state, Process::Child Runtime::State::* slot,
+                Component component, const std::wstring& exe) {
+    const std::wstring name = ComponentLogName(component);
+    LOGI(L"Starting " + name + L": " + exe);
 
     // nginx derives its prefix from its own module path with the wide API, and it
     // already lives in the directory that prefix has to be, so it needs no
@@ -253,23 +495,12 @@ StartFailure StartChild(Runtime::State& state, Process::Child Runtime::State::* 
     // error log. The working directory carries the same information and is passed
     // as UTF-16 by the kernel.
     Process::Child child = Process::LaunchChild(exe, L"", DirOf(exe));
-    if (!child) return StartFailure::Launch;
+    if (!child) return false;
 
-    // The one failure a launch cannot report by itself: the process was created, then
-    // gave up on its own configuration. Waiting on the handle returns the moment that
-    // happens; if the window passes with the child still alive, it is started.
-    if (child.WaitForExit(kStartupSettleMs)) {
-        DWORD code = 0;
-        const std::wstring detail =
-            child.ExitCode(code) ? L" (exit code " + std::to_wstring(code) + L")" : L"";
-        LOGE(std::wstring(spec.name) + L" exited immediately after starting" + detail + L".");
-        return StartFailure::Exited;
-    }
-
-    LOGI(std::wstring(spec.name) + L" started (pid " + std::to_wstring(child.pid()) + L").");
+    LOGI(name + L" started (pid " + std::to_wstring(child.pid()) + L").");
     std::lock_guard<std::mutex> lock(state.childMutex);
     state.*slot = std::move(child);
-    return StartFailure::None;
+    return true;
 }
 
 void StopChildren(Runtime::State& state) {
@@ -301,6 +532,17 @@ void StopChildren(Runtime::State& state) {
 }
 
 void StopLocked(Runtime::State& state) {
+    // First, so that terminating the children below is not mistaken for the thing the
+    // supervisor exists to catch. Every death from here on is one this program asked
+    // for, and this returns only once nothing is waiting on their handles.
+    state.supervisor.Disarm();
+
+    // The stack that was up is no longer the stack that is up, whatever comes next.
+    // Bumped here rather than only on the way back up, so that a report already in
+    // flight is invalidated by the stop itself and not left to be filtered by
+    // whatever happens to be running when it arrives.
+    ++state.generation;
+
     // Removing the policy rule is what returns DNS to normal; flushing afterwards
     // drops the loopback answers we synthesized, so names resolve for real again
     // straight away instead of after their TTL runs out.
@@ -312,22 +554,119 @@ void StopLocked(Runtime::State& state) {
     LOGI(L"Services stopped.");
 }
 
+// Compose a service dialog: the service and what happened to it, then what that cost.
+//
+// One line, one consequence — and both built here rather than at the call sites,
+// which is what keeps the dialogs from drifting into looking like messages from two
+// different programs. The name is a translation key, not a literal, so the dialog
+// calls a component exactly what the tray menu calls it. The separator between name
+// and reason comes from the translation table too, where a fullwidth colon in Chinese
+// is a translator's decision rather than a literal buried in code.
+std::wstring ServiceProblem(Component component, const wchar_t* reasonKey) {
+    return std::wstring(T(ComponentNameKey(component))) + T(L"punct.colon") + T(reasonKey) +
+           L"\n" + T(L"msg.serviceFailed");
+}
+
 // Report a failed start. The logon path passes interactive == false and must never
 // put a dialog in front of someone who is still signing in.
-void ReportStartFailure(bool interactive, const wchar_t* what, const wchar_t* reasonKey) {
+void ReportStartFailure(bool interactive, Component component, const wchar_t* reasonKey) {
     if (!interactive) return;
-    const std::wstring message =
-        std::wstring(T(L"msg.startFail")) + L"\n\n" + what + L": " + T(reasonKey);
+    MessageBoxW(nullptr, ServiceProblem(component, reasonKey).c_str(), APP_NAME, MB_ICONERROR);
+}
+
+// Why the component stopped, in the words the user is shown.
+//
+// Only DNS redirection has more than one answer, and the two are worth telling apart
+// because the thing to do about them differs: a server that stopped answering is this
+// machine's networking, while a policy rule that keeps being deleted is another
+// program on the machine, and no amount of restarting this one will help.
+const wchar_t* ReasonKeyFor(Runtime::State& state, Component component) {
+    if (component != Component::DnsRedirection) return L"reason.exitedWhileRunning";
+    return state.redirector.failure() == Dns::RedirectFailure::RuleUnholdable
+               ? L"reason.dnsRuleRemoved"
+               : L"reason.dnsServerStopped";
+}
+
+// The exit code, for the log, when the component that stopped is one that has one.
+std::wstring ExitDetail(Runtime::State& state, Component component) {
+    std::lock_guard<std::mutex> lock(state.childMutex);
+    const Process::Child* child = nullptr;
+    if (component == Component::Nginx) child = &state.nginx;
+    if (component == Component::SniGate) child = &state.sniGate;
+
+    DWORD code = 0;
+    if (child && child->ExitCode(code)) return L" (exit code " + std::to_wstring(code) + L")";
+    return L"";
+}
+
+// A component stopped without being asked to. Take the rest of the stack down with it.
+//
+// Half a stack is the one state this program refuses to sit in. nginx gone leaves the
+// DNS policy rule pointing every listed name at a loopback port nothing answers,
+// which breaks those sites far more thoroughly than not running at all would — and
+// leaves the user with no way to tell why, since everything still reports as started.
+// DNS redirection gone is the same picture from the other side. Rolling back restores
+// the machine to what it was before the start; the dialog is what turns a silent
+// breakage into something the user can act on.
+//
+// That dialog is shown however the stack was started, including from the logon path
+// that suppresses its own failure dialogs. The reasoning there does not carry: that
+// suppression exists so nothing is put in front of someone still signing in, but a
+// component going down has no such moment attached to it — it can land three hours
+// into a session, and tying the notification to how the stack came up would silence it
+// for the whole of that session.
+//
+// `generation` is the incarnation of the stack this report was armed against. It runs
+// on the supervisor's own thread, which has already stopped supervising by the time
+// this is entered, so blocking here — including on the message box — delays nothing.
+void OnComponentDown(Component component, uint64_t generation) {
+    const std::shared_ptr<Runtime::State> state = Ctx();
+    if (!state) return;  // the runtime is gone; there is nothing left to take down
+
+    // What the user is told, composed while the lock is still held. The reason
+    // belongs to the incarnation being torn down, so it is read before the teardown
+    // rather than after it.
+    std::wstring message;
+    {
+        std::lock_guard<std::mutex> lock(state->operationMutex);
+
+        // Two ways this turns out to have been expected after all, just not by the
+        // supervisor: the program is on its way out, or the stack changed while this
+        // report was queued on the mutex — a Stop got in first, or a cache clean has
+        // already stopped and restarted everything and what is up now is a stack this
+        // report has nothing to say about.
+        if (state->shuttingDown.load(std::memory_order_acquire)) return;
+        if (state->generation != generation) {
+            LOGI(std::wstring(ComponentLogName(component)) +
+                 L" stopped, but the stack has been restarted since; ignoring it.");
+            return;
+        }
+
+        LOGE(std::wstring(ComponentLogName(component)) + L" stopped without being asked to" +
+             ExitDetail(*state, component) + L"; the stack is half up, taking the rest down.");
+        message = ServiceProblem(component, ReasonKeyFor(*state, component));
+        StopLocked(*state);
+    }
+
+    // Outside the lock on purpose: this dialog waits for a person, and holding the
+    // operation mutex across it would freeze Start, Stop and the tray behind it for
+    // as long as the message box goes unread.
     MessageBoxW(nullptr, message.c_str(), APP_NAME, MB_ICONERROR);
 }
 
-const wchar_t* FailureKey(StartFailure failure) {
-    switch (failure) {
-        case StartFailure::Launch: return L"msg.startFailLaunch";
-        case StartFailure::Exited: return L"msg.startFailExited";
-        case StartFailure::None: break;
-    }
-    return L"msg.startFailLaunch";
+// Begin watching every component. Called at the end of a start, which is also the
+// point from which the stack is expected to stay up.
+//
+// The generation the report will carry is decided here, in the same step that arms
+// the watch, so a report can only ever describe the incarnation it was armed for.
+void ArmSupervisor(Runtime::State& state) {
+    const uint64_t generation = ++state.generation;
+    std::lock_guard<std::mutex> lock(state.childMutex);
+    state.supervisor.Arm(
+        {{Component::Nginx, state.nginx.waitHandle()},
+         {Component::SniGate, state.sniGate.waitHandle()},
+         {Component::DnsRedirection, state.redirector.failureHandle()}},
+        [generation](Component component) { OnComponentDown(component, generation); });
 }
 
 // Refuse to start when the service that enforces the DNS policy table is down.
@@ -386,7 +725,7 @@ bool StartLocked(Runtime::State& state, bool interactive) {
         LOGI(L"Start requested while everything is already running; nothing to do.");
         return true;
     }
-    if (state.redirector.Running() || state.nginx || state.sniGate) {
+    if (state.redirector.Active() || state.nginx || state.sniGate) {
         LOGW(L"Start requested with part of the stack still up; stopping the remnant first.");
         StopLocked(state);
     }
@@ -426,19 +765,15 @@ bool StartLocked(Runtime::State& state, bool interactive) {
     // From here on the start is all-or-nothing. A stack with nginx up but the DNS
     // redirection down proxies nothing, yet holds the ports and reads as partly running;
     // rolling back leaves the machine exactly as it was found.
-    const StartFailure nginxResult =
-        StartChild(state, &Runtime::State::nginx, kNginx, NginxExe());
-    if (nginxResult != StartFailure::None) {
+    if (!StartChild(state, &Runtime::State::nginx, Component::Nginx, NginxExe())) {
         StopLocked(state);
-        ReportStartFailure(interactive, kNginx.name, FailureKey(nginxResult));
+        ReportStartFailure(interactive, Component::Nginx, L"reason.launchFailed");
         return false;
     }
 
-    const StartFailure sniGateResult =
-        StartChild(state, &Runtime::State::sniGate, kSniGate, SniGateExe());
-    if (sniGateResult != StartFailure::None) {
+    if (!StartChild(state, &Runtime::State::sniGate, Component::SniGate, SniGateExe())) {
         StopLocked(state);
-        ReportStartFailure(interactive, kSniGate.name, FailureKey(sniGateResult));
+        ReportStartFailure(interactive, Component::SniGate, L"reason.launchFailed");
         return false;
     }
 
@@ -456,6 +791,12 @@ bool StartLocked(Runtime::State& state, bool interactive) {
     // Evict any real addresses cached for redirected names so the redirect takes
     // effect immediately rather than after the cached TTL runs out.
     FlushResolverCache();
+
+    // Everything is up. Coming up and staying up are different questions, and this is
+    // where responsibility passes from one to the other — including for a child that
+    // is already gone by now, whose handle the supervisor finds signalled the moment
+    // it starts waiting.
+    ArmSupervisor(state);
 
     LOGI(L"DNS redirection started with " + std::to_wstring(state.redirector.RuleCount()) +
          L" rules.");

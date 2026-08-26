@@ -21,11 +21,13 @@
 // Appends to logs\snibypassgui.log beside the executable.
 //
 // Writing is off unless the user turns it on, so LogLine is safe to call
-// unconditionally and costs an atomic load when it is off. Every piece of state
-// this module owns is trivially destructible on purpose: a log call must remain
-// safe no matter when it happens, including after main() has returned, where a
-// std::mutex or std::wstring owned by another translation unit may already have
-// been destroyed.
+// unconditionally and costs an atomic load when it is off. Nothing on disk is touched
+// until a line is actually written — a program nobody asked for a log from leaves no
+// directory behind — and the directory is re-created if it goes missing while the
+// program runs, which cache cleanup does. Every piece of state this module owns is
+// trivially destructible on purpose: a log call must remain safe no matter when it
+// happens, including after main() has returned, where a std::mutex or std::wstring
+// owned by another translation unit may already have been destroyed.
 void LogInit();
 void LogLine(const std::wstring& level, const std::wstring& msg);
 

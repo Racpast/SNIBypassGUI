@@ -31,10 +31,12 @@
 #include <iphlpapi.h>
 
 #include <cstring>
+#include <system_error>
 #include <utility>
 #include <vector>
 
 #include "app/logging.h"
+#include "app/text.h"
 #include "dns/message.h"
 
 namespace Dns {
@@ -718,10 +720,17 @@ void ExpirePendingUdp(ResolverState& s) {
 
 // ---- LocalResolver -----------------------------------------------------------
 
-LocalResolver::LocalResolver() : m_activeRules(std::make_shared<const RuleSet>()) {}
+LocalResolver::LocalResolver()
+    : m_activeRules(std::make_shared<const RuleSet>()),
+      m_stopped(CreateEventW(nullptr, TRUE, TRUE, nullptr)) {
+    if (!m_stopped)
+        LOGE(L"Resolver: cannot create the loop's state event (err " +
+             std::to_wstring(GetLastError()) + L"); the server cannot be started.");
+}
 
 LocalResolver::~LocalResolver() {
     Stop();
+    if (m_stopped) CloseHandle(m_stopped);
 }
 
 void LocalResolver::Publish(std::shared_ptr<const RuleSet> rules) {
@@ -739,6 +748,13 @@ bool LocalResolver::Start() {
     // closed sockets behind. Tearing that down first means Start always begins from
     // a clean state and can never stack a second loop on the first.
     Stop();
+
+    // Without it there is no way to publish that the loop has ended, and a server
+    // whose death cannot be observed is exactly what this endpoint must never be.
+    if (!m_stopped) {
+        LOGE(L"Resolver: no state event; refusing to start a server nobody can watch.");
+        return false;
+    }
 
     if (!EnsureWinsock()) {
         LOGE(L"Resolver: winsock could not be initialized.");
@@ -782,7 +798,26 @@ bool LocalResolver::Start() {
 
     m_state = std::move(state);
     m_running.store(true);
-    m_thread = std::thread([this] { Loop(); });
+
+    // Cleared before the thread exists, so the loop can only ever set it again —
+    // there is no ordering in which a real "the loop ended" signal is cleared by the
+    // start that came before it.
+    ResetEvent(m_stopped);
+
+    // The one operation here that allocates a kernel object without returning a code
+    // for it. Letting it throw would unwind out of Start, out of the service start
+    // above it, and into a detached tray worker with no handler — a process killed
+    // for being out of memory, with the policy rule still installed.
+    try {
+        m_thread = std::thread([this] { Loop(); });
+    } catch (const std::system_error& e) {
+        LOGE(L"Resolver: cannot create the server thread (" + Utf8ToWide(e.what()) + L").");
+        m_running.store(false);
+        SetEvent(m_stopped);
+        m_state.reset();  // closes every socket
+        return false;
+    }
+
     LOGI(std::wstring(L"Resolver: listening on ") + kResolverAddress + L":" +
          std::to_wstring(kResolverPort) + L".");
     return true;
@@ -862,8 +897,12 @@ void LocalResolver::Loop() {
 
     // The loop can end without anyone asking — a failed select is the only way, but
     // it is a way. Clearing the flag here is what keeps "is the resolver running" an
-    // honest answer rather than a memory of having started it.
+    // honest answer rather than a memory of having started it, and signalling the
+    // event is what turns that from something someone has to think to ask into
+    // something a waiter is told. Set last, after the flag, so anyone woken by it
+    // reads a state that is already consistent.
     m_running.store(false);
+    SetEvent(m_stopped);
 }
 
 }  // namespace Dns

@@ -170,7 +170,7 @@ void AddIcon() {
 }
 
 std::wstring StatusLabel(const wchar_t* nameKey, bool running) {
-    return std::wstring(T(nameKey)) + L": " +
+    return std::wstring(T(nameKey)) + T(L"punct.colon") +
            (running ? std::wstring(L"● ") + T(L"status.running")
                     : std::wstring(L"○ ") + T(L"status.stopped"));
 }
@@ -346,8 +346,8 @@ void PromptAndApply(const Update::Info& info, const std::wstring& summary) {
         exeChanges ? (isDowngrade ? L"msg.updConfirmDowngrade" : L"msg.updConfirm")
                    : L"msg.updConfirmData";
 
-    std::wstring message =
-        std::wstring(T(titleKey)) + L" (" + info.version + L"):\n\n" + summary;
+    std::wstring message = std::wstring(T(titleKey)) + L" (" + info.version + L")" +
+                           T(L"punct.colonEol") + L"\n\n" + summary;
     if (!info.notes.empty())
         message += std::wstring(L"\n") + T(L"msg.updNotes") + L"\n" + info.notes + L"\n";
     message += std::wstring(L"\n") + T(confirmKey);
@@ -361,11 +361,11 @@ void PromptAndApply(const Update::Info& info, const std::wstring& summary) {
     // the download fails, onBeforeApply never fires and the services are undisturbed.
     Update::Progress progress;
     progress.onFile = [](size_t done, size_t total, const std::wstring&) {
-        SetTip(std::wstring(APP_NAME) + L": " + T(L"msg.updDownloading") + L" (" +
+        SetTip(std::wstring(APP_NAME) + T(L"punct.colon") + T(L"msg.updDownloading") + L" (" +
                std::to_wstring(done) + L"/" + std::to_wstring(total) + L")");
     };
     progress.onBeforeApply = [wasRunning] {
-        SetTip(std::wstring(APP_NAME) + L": " + T(L"msg.updApplying"));
+        SetTip(std::wstring(APP_NAME) + T(L"punct.colon") + T(L"msg.updApplying"));
         if (wasRunning) Services::Stop();
     };
 
@@ -444,7 +444,7 @@ void DoCleanCache() {
 
     std::thread([] {
         CleanupBusyGuard guard;
-        SetTip(std::wstring(APP_NAME) + L": " + T(L"msg.cleaningCache"));
+        SetTip(std::wstring(APP_NAME) + T(L"punct.colon") + T(L"msg.cleaningCache"));
         const Services::CacheCleanResult result = Services::CleanCache();
         ResetTip();
         if (!result.ok) {

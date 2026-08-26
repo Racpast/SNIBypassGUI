@@ -71,10 +71,16 @@ std::wstring SupportedSitesFile();
 
 // ---- Status ----
 //
-// None of these is a remembered flag. DNS redirection is read from its server
-// thread, and a child from its process handle, so a service that died on its own
-// reports as stopped the first time anyone asks — there is no cached value that can
-// drift away from what is actually running.
+// None of these is a remembered flag. DNS redirection is read from its server thread
+// and from whether it has failed, and a child from its process handle, so a component
+// that went down on its own reports as stopped the first time anyone asks — there is
+// no cached value that can drift away from what is actually running.
+//
+// DnsRedirectRunning is about both halves of that component, because either one alone
+// redirects nothing: the local server has to be answering AND the policy table has to
+// still be sending names to it. A rule deleted by other software is repaired rather
+// than reported, so this stays true across one; it goes false when the repairs stop
+// working, which is the point at which redirection has genuinely stopped.
 //
 // A child also reports as running when a copy of its executable is alive that this
 // program did not launch — someone opened it by hand in the data folder. It holds
@@ -93,6 +99,18 @@ bool AnyRunning();
 // holds the ports and reads as partly running. If a port is occupied by a foreign
 // process, an interactive call prompts before freeing it; a non-interactive one
 // (the logon start) never shows UI and reports through the log instead.
+//
+// Nothing here waits for a service to be "ready" on a clock, and nothing polls it for
+// readiness afterwards. A child counts as started once its process has been created;
+// from that point until the next Stop all three components are watched through kernel
+// objects in a single wait — the children through their process handles, DNS
+// redirection through an event it signals when it has stopped in a way it could not
+// repair — and any one of them going down without being asked to takes the rest of
+// the stack down with it and says so. A component that fails during the start itself
+// is covered by the same watch, not by a separate check. That is what keeps the
+// machine out of the state this program can do the most damage in: DNS still pointing
+// every listed name at a loopback port with nothing behind it, while everything
+// reports as running.
 bool Start(bool interactive);
 
 // Stop the whole stack and wait until the child ports are actually free again —

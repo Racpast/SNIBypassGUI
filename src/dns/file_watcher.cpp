@@ -20,9 +20,11 @@
 #include <windows.h>
 
 #include <cstdint>
+#include <system_error>
 #include <utility>
 
 #include "app/logging.h"
+#include "app/text.h"
 
 namespace Dns {
 namespace {
@@ -60,7 +62,21 @@ void FileWatcher::Start() {
     }
 
     m_stopRequested.store(false);
-    m_thread = std::thread([this] { Loop(); });
+
+    // The one allocation here that reports failure by throwing. Letting it out would
+    // unwind through the service start that called it and into a detached tray
+    // worker, where there is no handler at all — a process terminated for being out
+    // of memory. A rule file that stops being watched is a lost convenience; that is
+    // not.
+    try {
+        m_thread = std::thread([this] { Loop(); });
+    } catch (const std::system_error& e) {
+        LOGE(L"FileWatcher: cannot create the monitoring thread (" + Utf8ToWide(e.what()) +
+             L"); " + m_path + L" will not be reloaded automatically.");
+        CloseHandle(m_dirHandle);
+        m_dirHandle = nullptr;
+        return;
+    }
     LOGI(L"FileWatcher: started monitoring " + m_path);
 }
 

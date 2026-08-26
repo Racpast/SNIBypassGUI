@@ -36,7 +36,7 @@ bootstrap = "@dnspod-doh"
 
   [resolvers.cloudflare-doh.ech]
   mode = "doh-with-fallback"
-  config = "AEX+DQBBLQAgACAxQqjtKV8aN6XxFvuDitIIktkPDIJnbKcXPyGbTEl4ewAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA="
+  config = "AEX+DQBBSQAgACCroazjlZoPusoav985mbUuVIPv3RYBlmlh0o2FPT/vCgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA="
   require_ech = true
   ech_refresh = "1h"
   ech_domain = "cloudflare-ech.com"
@@ -117,7 +117,7 @@ addr = 443
 
   [listener.ech]
   mode = "doh-with-fallback"
-  config = "AEX+DQBBLQAgACAxQqjtKV8aN6XxFvuDitIIktkPDIJnbKcXPyGbTEl4ewAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA="
+  config = "AEX+DQBBSQAgACCroazjlZoPusoav985mbUuVIPv3RYBlmlh0o2FPT/vCgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA="
   ech_domain = "cloudflare-ech.com"
   require_ech = true
 

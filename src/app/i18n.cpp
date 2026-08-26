@@ -53,7 +53,7 @@ const std::map<std::wstring, Pair>& Table() {
     // re-wrapped block. Automatic formatting packs every entry to the left, which
     // costs exactly that.
     static const std::map<std::wstring, Pair> t = {
-        {L"version.display",  {L"V5.1.1", L"V5.1.1"}},
+        {L"version.display",  {L"V5.1.2", L"V5.1.2"}},
 
         {L"status.dns",       {L"DNS Redirection", L"DNS 重定向"}},
         {L"status.nginx",     {L"Nginx", L"Nginx"}},
@@ -114,32 +114,65 @@ const std::map<std::wstring, Pair>& Table() {
                                L"Use \"Start Services\" from the tray menu to retry.",
                                L"服务未能重新启动。\n请从托盘菜单中选择“启动服务”重试。"}},
 
-        // Shown when one service of the stack fails to come up. The start is rolled
-        // back, so the machine is left as it was found.
-        {L"msg.startFail",    {L"A required service could not be started, so SNIBypassGUI has "
-                               L"stopped everything it had started.",
-                               L"必要的服务未能启动，SNIBypassGUI 已停止本次已启动的全部组件。"}},
-        {L"msg.startFailLaunch", {L"could not be launched.",
-                               L"无法启动。"}},
-        {L"msg.startFailExited", {L"exited immediately after being launched. Its configuration "
-                               L"may be invalid, a file it needs may be missing, or security "
-                               L"software may have blocked it.",
-                               L"启动后立即退出。可能是其配置有误、所需文件缺失，"
-                               L"或被安全软件拦截。"}},
+        // Separator between a name and what follows it. In the table because it is a
+        // translator's decision rather than a literal: Chinese takes a fullwidth colon
+        // and no space, English a plain one and a space.
+        //
+        // Two roles, because the space is only right in one of them: punct.colon
+        // separates a name from a value on the same line, punct.colonEol ends a line
+        // that a block follows — where English would otherwise leave a space hanging
+        // before the break.
+        {L"punct.colon",      {L": ", L"："}},
+        {L"punct.colonEol",   {L":", L"："}},
+
+        // A service dialog is one line naming the service and what happened to it,
+        // then this — the consequence, which is the same however the service failed.
+        {L"msg.serviceFailed", {L"This required service could not run correctly, so "
+                               L"SNIBypassGUI has stopped every component it had started.",
+                               L"该必要服务未能正常运行，SNIBypassGUI 已停止本次启动的全部组件。"}},
+
+        // The two ways a service fails: never created, or created and then gone. The
+        // second covers a process that exits during the start as well as one that
+        // exits hours later, because nothing distinguishes those two except when they
+        // happen — which is why its cause list runs from a bad configuration to a
+        // manual kill rather than assuming either.
+        {L"reason.launchFailed", {L"The process could not be created. The program file may be "
+                               L"missing or damaged, or security software may have blocked it "
+                               L"from running.",
+                               L"无法创建该进程。程序文件可能缺失或损坏，也可能被安全软件阻止运行。"}},
+        {L"reason.exitedWhileRunning", {L"The process exited while running. Its configuration may "
+                               L"be invalid, a file it requires may be missing, or it may have "
+                               L"been terminated by security software or ended manually.",
+                               L"进程在运行期间退出。可能是其配置有误、所需文件缺失、"
+                               L"被安全软件终止或被手动结束。"}},
+
+        // DNS redirection is not a process, so neither reason above fits it. Its two
+        // halves fail differently and are worth telling apart, because what the user
+        // can do about them is different: one is this machine's network stack, the
+        // other is another program on the machine.
+        {L"reason.dnsServerStopped", {L"The local DNS server has stopped responding. This may be caused by "
+                               L"a local network stack failure or interference from security software.",
+                               L"本地 DNS 服务器已停止响应。可能是本机网络组件故障或被安全软件拦截。"}},
+        {L"reason.dnsRuleRemoved", {L"The DNS policy rule was repeatedly removed after restoration, preventing "
+                               L"any domain from being redirected. It may be continuously removed by "
+                               L"security software, network or registry optimization tools, or Group Policy.",
+                               L"DNS 策略规则多次恢复后均被再次删除，无法重定向任何域名。"
+                               L"可能是安全软件、网络或注册表优化工具或组策略正在持续删除该规则。"}},
         {L"msg.dnsStartFail", {L"Could not start DNS redirection.\n"
                                L"Another program may already be using 127.11.45.14:53, or the "
                                L"DNS Client service may be disabled.",
                                L"无法启动 DNS 重定向。\n"
                                L"可能是 127.11.45.14:53 已被其他程序占用，或 DNS Client 服务被禁用。"}},
-        {L"msg.dnsClientOff", {L"Windows' \"DNS Client\" service is not running, and SNIBypassGUI "
-                               L"cannot redirect any domain without it — no supported site would "
-                               L"work, so it did not start.\n\n"
-                               L"Press Win+R, run services.msc, set \"DNS Client\" to Automatic, "
-                               L"then restart Windows and try again.\n\n"
-                               L"Some \"system tuning\" guides may recommend disabling this "
-                               L"service, but Windows relies on it to work correctly.",
-                               L"Windows 的 “DNS Client” 服务未在运行。没有它，SNIBypassGUI "
-                               L"无法重定向任何域名，所有受支持的网站都不会生效，因此未启动。\n\n"
+        {L"msg.dnsClientOff", {L"Windows' \"DNS Client\" service is not running. Without this "
+                               L"service, SNIBypassGUI cannot redirect any domain and none of "
+                               L"the supported sites will take effect, so the program has not "
+                               L"started.\n\n"
+                               L"Press Win+R, run services.msc, set the \"DNS Client\" startup "
+                               L"type to \"Automatic\", then restart Windows and try again.\n\n"
+                               L"Some \"system optimization\" guides may recommend disabling this "
+                               L"service, but Windows relies on it for normal operation.",
+                               L"Windows 的 “DNS Client” 服务未在运行。缺少该服务时，SNIBypassGUI "
+                               L"无法重定向任何域名，所有受支持的网站都将无法生效，因此程序未启动。\n\n"
                                L"请按 Win+R 运行 services.msc，将 “DNS Client” 的启动类型设为"
                                L"“自动”，然后重启 Windows 后重试。\n\n"
                                L"部分“系统优化”教程可能会建议禁用此服务，但 Windows 的正常运行依赖于该服务。"}},

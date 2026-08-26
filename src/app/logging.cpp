@@ -59,12 +59,52 @@ void StoreLogPath(const std::wstring& path) {
     ReleaseSRWLockExclusive(&g_lock);
 }
 
+HANDLE OpenForAppend() {
+    return CreateFileW(g_logPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                       OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+}
+
+// Open the log file, creating its directory only when that is what is missing.
+//
+// The directory is NOT created up front, and that is the whole point: a program the
+// user has never asked to keep a log should not leave a folder behind to prove it.
+// Creating one at startup made the choice for them, and made it before the setting
+// had even been read.
+//
+// Nor is it created per line. The open succeeds on its own for every line but the
+// one that follows a missing directory, so the cost of getting this right is a single
+// failed CreateFileW in exactly the case that needs one.
+//
+// And that case is not only the first line of a run. Cache cleanup deletes this
+// directory out from under a running program, so "it existed at startup" is not
+// something a later write can rely on — which is why creating it here rather than in
+// LogInit is what makes logging survive a cleanup instead of silently stopping until
+// the next launch.
+//
+// Called with g_lock held, since it reads g_logPath.
+HANDLE OpenLogFile() {
+    HANDLE file = OpenForAppend();
+    if (file != INVALID_HANDLE_VALUE) return file;
+
+    // Only a missing directory is worth a second attempt. A denied open, a path that
+    // is not a directory, a full disk — retrying those would fail identically.
+    if (GetLastError() != ERROR_PATH_NOT_FOUND) return INVALID_HANDLE_VALUE;
+
+    const std::wstring path(g_logPath);
+    const size_t slash = path.find_last_of(L'\\');
+    if (slash == std::wstring::npos) return INVALID_HANDLE_VALUE;
+    SHCreateDirectoryExW(nullptr, path.substr(0, slash).c_str(), nullptr);
+
+    return OpenForAppend();
+}
+
 }  // namespace
 
+// Resolves where the log goes and reads whether anyone wants one. Nothing is created
+// and nothing is opened: see OpenLogFile for why the directory is left until there is
+// actually a line to put in it.
 void LogInit() {
-    const std::wstring dir = ExeDir() + L"logs";
-    SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
-    StoreLogPath(dir + L"\\snibypassgui.log");
+    StoreLogPath(ExeDir() + L"logs\\snibypassgui.log");
     g_enabled.store(LoggingEnabled(), std::memory_order_relaxed);
 }
 
@@ -91,9 +131,7 @@ void LogLine(const std::wstring& level, const std::wstring& msg) {
 
     AcquireSRWLockExclusive(&g_lock);
     if (g_logPath[0] != L'\0') {
-        HANDLE file =
-            CreateFileW(g_logPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                        nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        HANDLE file = OpenLogFile();
         if (file != INVALID_HANDLE_VALUE) {
             DWORD written = 0;
             WriteFile(file, line.data(), static_cast<DWORD>(line.size()), &written, nullptr);
