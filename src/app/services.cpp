@@ -102,53 +102,46 @@ std::wstring DirOf(const std::wstring& exe) {
 
 // ---- Child descriptions ------------------------------------------------------
 
-// The port a child must be listening on before it counts as started.
+// A child counts as started once it is running.
 //
-// "The process is still alive" is not a postcondition worth having: a child that
-// cannot read its configuration dies a few milliseconds later, and one that lives
-// but never binds is just as useless to everything downstream. The listener is the
-// fact the rest of the stack actually depends on, and it is directly observable.
+// This used to wait for its listening socket to appear instead, on the reasoning
+// that the listener is the fact the rest of the stack depends on. It is — but it is
+// not a fact with a bound on when it arrives. A cold start off a slow disk, an
+// antivirus scanning the image, a machine still busy right after logon: any of them
+// can push the bind past a deadline that no value would make safe, and the wait then
+// terminated a service that was seconds from being ready and reported a failure that
+// had not happened. Liveness is the property this program can actually observe about
+// a child it owns, through the kernel handle, and it never says "broken" about
+// something that merely started slowly.
+//
+// What that gives up is the child that lives but never binds. What it keeps is the
+// failure that actually occurs — a child that cannot read its configuration, or is
+// blocked by security software, exits within milliseconds — and the settling window
+// below is there to catch exactly that.
 struct ChildSpec {
     const wchar_t* name;
-    int readyPort;
 };
 
-constexpr ChildSpec kNginx{L"nginx", 22222};
-constexpr ChildSpec kSniGate{L"sni-gate", 443};
+constexpr ChildSpec kNginx{L"nginx"};
+constexpr ChildSpec kSniGate{L"sni-gate"};
 
-// Upper bound on how long a child may take to bind its port. This is a deadline,
-// not a delay: a healthy start returns as soon as the listener appears, and a
-// failed one the instant the process dies.
-constexpr DWORD kStartupTimeoutMs = 10000;
-
-// How often the TCP table is re-read while waiting. There is no kernel event for
-// "a socket started listening", so this is the one place a poll cannot be avoided;
-// the failure direction is still event-driven, through the process handle.
-constexpr DWORD kListenPollMs = 50;
+// How long a freshly launched child is watched before it counts as started.
+//
+// A deadline, not a delay: the wait is on the process handle and returns the instant
+// the child dies, so a broken start is reported at once and only a healthy one pays
+// the window in full. Long enough for a fatal misconfiguration to surface — those
+// exits happen in tens of milliseconds — and short enough not to be felt on a start
+// the user asked for.
+constexpr DWORD kStartupSettleMs = 500;
 
 // How long to wait for a stopped service's port to disappear from the TCP table.
 constexpr DWORD kPortReleaseTimeoutMs = 5000;
 
-enum class Readiness { Listening, Exited, TimedOut };
-enum class StartFailure { None, Launch, Exited, Timeout };
+// How often the TCP table is re-read while waiting for a port to be released. There
+// is no kernel event for "a socket closed", so this poll cannot be avoided.
+constexpr DWORD kPortPollMs = 50;
 
-// Wait until `child` is listening on `port`, has exited, or the deadline passes.
-//
-// The wait on the process handle is what makes the failure path immediate: a child
-// that dies after 5ms wakes us after 5ms. The port check between waits is what
-// makes the success path meaningful.
-Readiness AwaitListening(const Process::Child& child, int port, DWORD timeoutMs) {
-    const ULONGLONG deadline = GetTickCount64() + timeoutMs;
-    for (;;) {
-        if (Ports::IsOccupied(port)) return Readiness::Listening;
-        if (child.WaitForExit(kListenPollMs)) {
-            // Re-read the table once: the process could have bound the port in the
-            // moment between our last check and its exit.
-            return Ports::IsOccupied(port) ? Readiness::Listening : Readiness::Exited;
-        }
-        if (GetTickCount64() >= deadline) return Readiness::TimedOut;
-    }
-}
+enum class StartFailure { None, Launch, Exited };
 
 // Wait for our service ports to leave the TCP table.
 //
@@ -167,7 +160,7 @@ void AwaitPortsReleased(DWORD timeoutMs) {
             LOGW(L"A service port is still held after stopping; a restart may fail to bind.");
             return;
         }
-        Sleep(kListenPollMs);
+        Sleep(kPortPollMs);
     }
 }
 
@@ -262,26 +255,18 @@ StartFailure StartChild(Runtime::State& state, Process::Child Runtime::State::* 
     Process::Child child = Process::LaunchChild(exe, L"", DirOf(exe));
     if (!child) return StartFailure::Launch;
 
-    switch (AwaitListening(child, spec.readyPort, kStartupTimeoutMs)) {
-        case Readiness::Listening: break;
-        case Readiness::Exited: {
-            DWORD code = 0;
-            const std::wstring detail =
-                child.ExitCode(code) ? L" (exit code " + std::to_wstring(code) + L")" : L"";
-            LOGE(std::wstring(spec.name) + L" exited immediately after starting" + detail +
-                 L"; it never bound port " + std::to_wstring(spec.readyPort) + L".");
-            return StartFailure::Exited;
-        }
-        case Readiness::TimedOut:
-            LOGE(std::wstring(spec.name) + L" did not start listening on port " +
-                 std::to_wstring(spec.readyPort) + L" within " +
-                 std::to_wstring(kStartupTimeoutMs) + L" ms; stopping it again.");
-            child.Terminate();
-            return StartFailure::Timeout;
+    // The one failure a launch cannot report by itself: the process was created, then
+    // gave up on its own configuration. Waiting on the handle returns the moment that
+    // happens; if the window passes with the child still alive, it is started.
+    if (child.WaitForExit(kStartupSettleMs)) {
+        DWORD code = 0;
+        const std::wstring detail =
+            child.ExitCode(code) ? L" (exit code " + std::to_wstring(code) + L")" : L"";
+        LOGE(std::wstring(spec.name) + L" exited immediately after starting" + detail + L".");
+        return StartFailure::Exited;
     }
 
-    LOGI(std::wstring(spec.name) + L" started (pid " + std::to_wstring(child.pid()) +
-         L"), listening on port " + std::to_wstring(spec.readyPort) + L".");
+    LOGI(std::wstring(spec.name) + L" started (pid " + std::to_wstring(child.pid()) + L").");
     std::lock_guard<std::mutex> lock(state.childMutex);
     state.*slot = std::move(child);
     return StartFailure::None;
@@ -340,7 +325,6 @@ const wchar_t* FailureKey(StartFailure failure) {
     switch (failure) {
         case StartFailure::Launch: return L"msg.startFailLaunch";
         case StartFailure::Exited: return L"msg.startFailExited";
-        case StartFailure::Timeout: return L"msg.startFailTimeout";
         case StartFailure::None: break;
     }
     return L"msg.startFailLaunch";

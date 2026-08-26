@@ -53,7 +53,7 @@ const std::map<std::wstring, Pair>& Table() {
     // re-wrapped block. Automatic formatting packs every entry to the left, which
     // costs exactly that.
     static const std::map<std::wstring, Pair> t = {
-        {L"version.display",  {L"V5.1.0", L"V5.1.0"}},
+        {L"version.display",  {L"V5.1.1", L"V5.1.1"}},
 
         {L"status.dns",       {L"DNS Redirection", L"DNS 重定向"}},
         {L"status.nginx",     {L"Nginx", L"Nginx"}},
@@ -126,8 +126,6 @@ const std::map<std::wstring, Pair>& Table() {
                                L"software may have blocked it.",
                                L"启动后立即退出。可能是其配置有误、所需文件缺失，"
                                L"或被安全软件拦截。"}},
-        {L"msg.startFailTimeout", {L"started but never began listening on its port.",
-                               L"已启动，但始终未开始监听其端口。"}},
         {L"msg.dnsStartFail", {L"Could not start DNS redirection.\n"
                                L"Another program may already be using 127.11.45.14:53, or the "
                                L"DNS Client service may be disabled.",

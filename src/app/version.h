@@ -26,7 +26,7 @@
 //
 // For display strings (tray tooltip, about dialog), use GetVersionDisplayStr()
 // which pulls from i18n key "version.display" with fallback to APP_VERSION_NUM.
-#define APP_VERSION_NUM L"5.1.0"
+#define APP_VERSION_NUM L"5.1.1"
 
 #include <string>
 std::wstring GetVersionDisplayStr();

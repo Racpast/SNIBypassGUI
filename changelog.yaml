@@ -20,6 +20,13 @@
 
 # --- newest first; CI reads the topmost entry ---
 
+- version: "5.1.1"
+  date: "2026-08-26"
+  en: |
+    Treat a service as started once its process is alive, not once it listens.
+  zh-CN: |
+    以进程存活判定服务启动完成，不再等待端口监听。
+
 - version: "5.1.0"
   date: "2026-08-26"
   en: |
